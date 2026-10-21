@@ -20,6 +20,7 @@ import {
   Coins,
 } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
+import { BottomNav } from '../components/BottomNav';
 import { BioChallengeModal } from '../components/BioChallengeModal';
 import { SubmitClipModal } from '../components/SubmitClipModal';
 import { CreateCampaignModal } from '../components/CreateCampaignModal';
@@ -102,7 +103,7 @@ export default function HomePage() {
         onOpenCreateCampaign={() => setIsCreateModalOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-12">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12 space-y-12 pb-24 md:pb-12">
         {/* HERO SECTION */}
         <section className="relative rounded-3xl p-8 sm:p-12 overflow-hidden glass-card border border-[#7B337E]/40 shadow-moon-glow">
           {/* Background Radial Glow */}
@@ -509,6 +510,14 @@ export default function HomePage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCampaignCreated={handleCampaignCreated}
+      />
+
+      {/* MOBILE BOTTOM APP NAVIGATION */}
+      <BottomNav
+        onOpenSubmit={() => {
+          if (campaigns.length > 0) openSubmitFor(campaigns[0]);
+        }}
+        onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
     </div>
   );

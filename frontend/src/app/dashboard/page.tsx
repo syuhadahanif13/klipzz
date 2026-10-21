@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
+import { BottomNav } from '../../components/BottomNav';
 import { BioChallengeModal } from '../../components/BioChallengeModal';
 import { CreateCampaignModal } from '../../components/CreateCampaignModal';
 import { useAuth } from '../../context/AuthContext';
@@ -84,7 +85,7 @@ export default function DashboardPage() {
         onOpenCreateCampaign={() => setIsCreateModalOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 pb-24 md:pb-12">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -343,6 +344,11 @@ export default function DashboardPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCampaignCreated={(camp) => console.log('Created:', camp)}
+      />
+
+      {/* MOBILE BOTTOM APP NAVIGATION */}
+      <BottomNav
+        onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
     </div>
   );

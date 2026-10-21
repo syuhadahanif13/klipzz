@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, Medal, Flame, Eye, Scissors, ExternalLink, Sparkles } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
+import { BottomNav } from '../../components/BottomNav';
 import { BioChallengeModal } from '../../components/BioChallengeModal';
 import { CreateCampaignModal } from '../../components/CreateCampaignModal';
 import { useAuth } from '../../context/AuthContext';
@@ -108,7 +109,7 @@ export default function LeaderboardPage() {
         onOpenCreateCampaign={() => setIsCreateModalOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-10 pb-24 md:pb-12">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7B337E]/30 text-[#F5D5E0] border border-[#7B337E]/50 text-xs font-semibold">
             <Trophy className="w-3.5 h-3.5 text-amber-400" />
@@ -268,6 +269,11 @@ export default function LeaderboardPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCampaignCreated={(camp) => console.log('Created:', camp)}
+      />
+
+      {/* MOBILE BOTTOM APP NAVIGATION */}
+      <BottomNav
+        onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
     </div>
   );

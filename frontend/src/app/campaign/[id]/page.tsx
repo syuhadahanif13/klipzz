@@ -24,6 +24,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
+import { BottomNav } from '../../../components/BottomNav';
 import { BioChallengeModal } from '../../../components/BioChallengeModal';
 import { SubmitClipModal } from '../../../components/SubmitClipModal';
 import { CreateCampaignModal } from '../../../components/CreateCampaignModal';
@@ -46,13 +47,21 @@ function extractYoutubeId(url?: string, defaultId?: string): string {
 export default function CampaignDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const campaignId = params?.id as string;
+  const campaignId = (params?.id as string) || 'c1111111-1111-1111-1111-111111111111';
   const { user } = useAuth();
 
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Find immediate mock match to guarantee 0ms instant display without blank screen
+  const initialMatch =
+    MOCK_CAMPAIGNS.find((c) => c.id === campaignId) ||
+    MOCK_CAMPAIGNS[0];
+
+  const [campaign, setCampaign] = useState<Campaign>(initialMatch);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
-  const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>([]);
+  const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>(() => {
+    return MOCK_SUBMISSIONS.filter(
+      (s) => s.campaign_id === campaignId || s.campaign_id === initialMatch.id
+    );
+  });
 
   // Modals
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
@@ -65,107 +74,98 @@ export default function CampaignDetailPage() {
   const [activeTimestamp, setActiveTimestamp] = useState<number | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadCampaignData() {
-      setLoading(true);
+      // 1. Immediately match local data if campaignId changed
+      const localMatch =
+        MOCK_CAMPAIGNS.find((c) => c.id === campaignId) ||
+        MOCK_CAMPAIGNS[0];
+      if (isMounted) {
+        setCampaign(localMatch);
+      }
+
       try {
-        // 1. Try fetching campaign from Supabase
-        const { data: dbCampaign, error: campErr } = await supabase
+        // 2. Fetch live campaign from Supabase
+        const { data: dbCampaign } = await supabase
           .from('campaigns')
           .select('*')
           .eq('id', campaignId)
           .maybeSingle();
 
-        if (dbCampaign) {
-          setCampaign(dbCampaign as Campaign);
-        } else {
-          // Fallback to matching mock campaign
-          const fallback =
-            MOCK_CAMPAIGNS.find((c) => c.id === campaignId) ||
-            MOCK_CAMPAIGNS[0];
-          setCampaign(fallback);
+        if (dbCampaign && isMounted) {
+          setCampaign((prev) => ({
+            ...prev,
+            ...dbCampaign,
+            hashtag_requirements:
+              dbCampaign.hashtag_requirements && dbCampaign.hashtag_requirements.length > 0
+                ? dbCampaign.hashtag_requirements
+                : prev.hashtag_requirements,
+            guidelines:
+              dbCampaign.guidelines && dbCampaign.guidelines.length > 0
+                ? dbCampaign.guidelines
+                : prev.guidelines,
+          }));
         }
 
-        // 2. Fetch submissions for this campaign
+        // 3. Fetch submissions for this campaign
         const { data: dbSubs } = await supabase
           .from('submissions')
           .select('*')
           .eq('campaign_id', campaignId);
 
-        if (dbSubs && dbSubs.length > 0) {
+        if (dbSubs && dbSubs.length > 0 && isMounted) {
           setCampaignSubmissions(dbSubs as Submission[]);
-        } else {
-          setCampaignSubmissions(
-            MOCK_SUBMISSIONS.filter((s) => s.campaign_id === campaignId || s.campaign_id === 'c1111111-1111-1111-1111-111111111111')
-          );
         }
 
-        // 3. Fetch user's social accounts if logged in
+        // 4. Fetch user's social accounts if logged in
         if (user) {
           const { data: userAccs } = await supabase
             .from('social_accounts')
             .select('*')
             .eq('user_id', user.id);
 
-          if (userAccs && userAccs.length > 0) {
+          if (userAccs && userAccs.length > 0 && isMounted) {
             setSocialAccounts(userAccs as SocialAccount[]);
           }
         }
       } catch (err) {
-        console.warn('Error loading campaign detail:', err);
-        const fallback =
-          MOCK_CAMPAIGNS.find((c) => c.id === campaignId) ||
-          MOCK_CAMPAIGNS[0];
-        setCampaign(fallback);
-      } finally {
-        setLoading(false);
+        console.warn('Using instant fallback campaign data:', err);
       }
     }
 
-    if (campaignId) {
-      loadCampaignData();
-    }
+    loadCampaignData();
+    return () => {
+      isMounted = false;
+    };
   }, [campaignId, user]);
 
-  if (loading && !campaign) {
-    return (
-      <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col items-center justify-center space-y-3">
-        <div className="w-8 h-8 border-2 border-[#7B337E] border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs text-[#F5D5E0]/70">Memuat Creator Kit & Detail Campaign...</span>
-      </div>
-    );
-  }
-
-  if (!campaign) {
-    return (
-      <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col items-center justify-center p-4">
-        <div className="glass-card rounded-3xl p-8 border border-[#7B337E]/40 text-center max-w-md space-y-4">
-          <ShieldAlert className="w-12 h-12 text-[#6667AB] mx-auto" />
-          <h2 className="text-xl font-bold">Campaign Tidak Ditemukan</h2>
-          <p className="text-xs text-[#F5D5E0]/70">
-            Episode yang kamu cari mungkin telah selesai atau tautan yang kamu buka tidak valid.
-          </p>
-          <Link
-            href="/"
-            className="inline-block py-2.5 px-5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0]"
-          >
-            Kembali ke Semua Campaign
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  // Safe fallback getters so UI never crashes or goes blank
+  const targetCampaign = campaign || initialMatch;
+  const hashtagRequirements =
+    targetCampaign.hashtag_requirements && targetCampaign.hashtag_requirements.length > 0
+      ? targetCampaign.hashtag_requirements
+      : ['#DipanggilKeRuangan', '#KlipzzViral'];
+  const rewardPool = Number(targetCampaign.reward_pool) || 25000000;
+  const remainingPool = Number(targetCampaign.remaining_pool) || 16800000;
+  const ratePer1k = Number(targetCampaign.rate_per_1k_views) || 18000;
+  const minViews = Number(targetCampaign.min_views_threshold) || 1000;
+  const maxPayout = Number(targetCampaign.max_payout_per_clip) || 2000000;
 
   const handleCopyTags = () => {
-    navigator.clipboard.writeText(campaign.hashtag_requirements.join(' '));
+    navigator.clipboard.writeText(hashtagRequirements.join(' '));
     setCopiedTags(true);
     setTimeout(() => setCopiedTags(false), 2000);
   };
 
-  const videoEmbedId = extractYoutubeId(campaign.source_youtube_url, campaign.youtube_video_id);
-
-  const claimedPercentage = Math.round(
-    ((campaign.reward_pool - campaign.remaining_pool) / campaign.reward_pool) * 100
+  const videoEmbedId = extractYoutubeId(
+    targetCampaign.source_youtube_url,
+    targetCampaign.youtube_video_id || 'DHiELGxnAS4'
   );
+
+  const claimedPercentage = rewardPool > 0
+    ? Math.min(100, Math.max(0, Math.round(((rewardPool - remainingPool) / rewardPool) * 100)))
+    : 30;
 
   const punchlineTimestamps = [
     { time: '04:15', seconds: 255, title: 'Momen Pembuka & Reaksi Panik Guest' },
@@ -199,7 +199,7 @@ export default function CampaignDetailPage() {
         </div>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 pb-24 md:pb-12">
         {/* Back Link */}
         <div>
           <Link
@@ -217,20 +217,20 @@ export default function CampaignDetailPage() {
             <div className="space-y-3 max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-3 py-1 rounded-full bg-[#7B337E]/40 text-[#F5D5E0] border border-[#7B337E]/60 text-xs font-bold">
-                  {campaign.channel_name}
+                  {targetCampaign.channel_name || '@DipanggilKeRuangan'}
                 </span>
                 <span className="px-3 py-1 rounded-full bg-[#420D4B] text-[#6667AB] border border-[#6667AB]/40 text-xs font-bold">
-                  Bintang Tamu: {campaign.episode_guest}
+                  Bintang Tamu: {targetCampaign.episode_guest}
                 </span>
                 <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-semibold">
                   Status: Active Payout
                 </span>
               </div>
               <h1 className="text-2xl sm:text-4xl font-black text-[#F5D5E0] leading-tight">
-                {campaign.title}
+                {targetCampaign.title}
               </h1>
               <p className="text-xs sm:text-sm text-[#F5D5E0]/80">
-                {campaign.description}
+                {targetCampaign.description}
               </p>
             </div>
 
@@ -250,10 +250,10 @@ export default function CampaignDetailPage() {
           <div className="p-4 rounded-2xl bg-[#210635]/80 border border-[#7B337E]/30 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
               <span className="text-[#F5D5E0]/70 font-semibold">
-                Alokasi Dana Tersisa: <strong className="text-emerald-400 font-bold">Rp {campaign.remaining_pool.toLocaleString('id-ID')}</strong> dari Rp {campaign.reward_pool.toLocaleString('id-ID')}
+                Alokasi Dana Tersisa: <strong className="text-emerald-400 font-bold">Rp {remainingPool.toLocaleString('id-ID')}</strong> dari Rp {rewardPool.toLocaleString('id-ID')}
               </span>
               <span className="text-xs font-extrabold text-[#F5D5E0]">
-                Tarif Komisi: <span className="text-emerald-400">Rp {campaign.rate_per_1k_views.toLocaleString('id-ID')}</span> / 1.000 Views
+                Tarif Komisi: <span className="text-emerald-400">Rp {ratePer1k.toLocaleString('id-ID')}</span> / 1.000 Views
               </span>
             </div>
 
@@ -278,7 +278,7 @@ export default function CampaignDetailPage() {
                   <span>Video Podcast Asli (Source Footage)</span>
                 </h2>
                 <a
-                  href={campaign.source_youtube_url}
+                  href={targetCampaign.source_youtube_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs font-bold text-[#6667AB] hover:text-[#F5D5E0] flex items-center gap-1"
@@ -293,7 +293,7 @@ export default function CampaignDetailPage() {
                 <iframe
                   className="w-full h-full"
                   src={`https://www.youtube.com/embed/${videoEmbedId}${activeTimestamp ? `?start=${activeTimestamp}&autoplay=1` : ''}`}
-                  title={campaign.title}
+                  title={targetCampaign.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
@@ -305,7 +305,7 @@ export default function CampaignDetailPage() {
                   Resolusi Asli: 1080p 60fps • Format Vertikal 9:16 disarankan
                 </span>
                 <a
-                  href={`https://en.savefrom.net/20/#url=${encodeURIComponent(campaign.source_youtube_url)}`}
+                  href={`https://en.savefrom.net/20/#url=${encodeURIComponent(targetCampaign.source_youtube_url)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#420D4B] hover:bg-[#7B337E] text-xs font-semibold text-[#F5D5E0] border border-[#7B337E]/50 transition-colors"
@@ -431,7 +431,7 @@ export default function CampaignDetailPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {campaign.hashtag_requirements.map((tag) => (
+                {hashtagRequirements.map((tag) => (
                   <span
                     key={tag}
                     className="px-3 py-1.5 rounded-xl bg-[#210635] border border-[#7B337E]/50 text-xs font-semibold text-[#F5D5E0]"
@@ -456,21 +456,21 @@ export default function CampaignDetailPage() {
                 <div className="flex justify-between py-1.5 border-b border-[#7B337E]/20">
                   <span className="text-[#F5D5E0]/60">Tarif per 1.000 Views</span>
                   <span className="font-extrabold text-emerald-400">
-                    Rp {campaign.rate_per_1k_views.toLocaleString('id-ID')}
+                    Rp {ratePer1k.toLocaleString('id-ID')}
                   </span>
                 </div>
 
                 <div className="flex justify-between py-1.5 border-b border-[#7B337E]/20">
                   <span className="text-[#F5D5E0]/60">Minimal Views Awal</span>
                   <span className="font-bold text-[#F5D5E0]">
-                    {campaign.min_views_threshold.toLocaleString('id-ID')} views
+                    {minViews.toLocaleString('id-ID')} views
                   </span>
                 </div>
 
                 <div className="flex justify-between py-1.5 border-b border-[#7B337E]/20">
                   <span className="text-[#F5D5E0]/60">Maksimal Komisi / Klip</span>
                   <span className="font-bold text-emerald-400">
-                    Rp {campaign.max_payout_per_clip.toLocaleString('id-ID')}
+                    Rp {maxPayout.toLocaleString('id-ID')}
                   </span>
                 </div>
 
@@ -543,7 +543,7 @@ export default function CampaignDetailPage() {
       <SubmitClipModal
         isOpen={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
-        campaign={campaign}
+        campaign={targetCampaign}
         socialAccounts={socialAccounts}
         onSubmitSuccess={(newSub) => {
           setCampaignSubmissions((prev) => [newSub, ...prev]);
@@ -559,6 +559,12 @@ export default function CampaignDetailPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCampaignCreated={(camp) => console.log('Created campaign:', camp)}
+      />
+
+      {/* MOBILE BOTTOM APP NAVIGATION */}
+      <BottomNav
+        onOpenSubmit={() => setIsSubmitModalOpen(true)}
+        onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
     </div>
   );
