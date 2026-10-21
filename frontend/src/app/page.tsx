@@ -15,6 +15,9 @@ import {
   ShieldCheck,
   Eye,
   Wallet,
+  Calculator,
+  Zap,
+  Coins,
 } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
 import { BioChallengeModal } from '../components/BioChallengeModal';
@@ -34,6 +37,7 @@ export default function HomePage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
   const [submissions, setSubmissions] = useState<Submission[]>(MOCK_SUBMISSIONS);
+  const [viewsEstimate, setViewsEstimate] = useState<number>(50000);
 
   // Modal states
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
@@ -88,6 +92,8 @@ export default function HomePage() {
       camp.episode_guest.toLowerCase().includes(searchQuery.toLowerCase());
     return matchSearch;
   });
+
+  const estimatedEarnings = Math.round((viewsEstimate / 1000) * 18000);
 
   return (
     <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
@@ -182,8 +188,101 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* INTERACTIVE KALKULATOR CUAN CLIPPER */}
+        <section className="glass-card rounded-3xl p-6 sm:p-8 border border-[#7B337E]/50 bg-gradient-to-br from-[#420D4B]/70 via-[#210635]/90 to-[#420D4B]/60 shadow-moon-glow">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+            <div className="space-y-4 max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#7B337E]/40 border border-[#7B337E] text-xs font-bold text-[#F5D5E0]">
+                <Calculator className="w-3.5 h-3.5 text-[#F5D5E0]" />
+                <span>Simulasi Cuan Clipper</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-[#F5D5E0] leading-snug">
+                Berapa Cuan yang Bisa Kamu Dapatkan dari 1 Klip Viral?
+              </h2>
+              <p className="text-xs sm:text-sm text-[#F5D5E0]/70">
+                Geser estimasi views di samping untuk melihat perkiraan komisi yang langsung cair ke dompetmu berdasarkan rata-rata tarif kampanye aktif DiPanggil ke Ruangan.
+              </p>
+
+              {/* Preset Buttons */}
+              <div className="flex flex-wrap gap-2 pt-2">
+                {[
+                  { label: '25.000 (Pemula)', value: 25000 },
+                  { label: '50.000 (Rata-rata FYP)', value: 50000 },
+                  { label: '150.000 (Viral)', value: 150000 },
+                  { label: '500.000 (Mega Viral)', value: 500000 },
+                ].map((preset) => (
+                  <button
+                    key={preset.value}
+                    onClick={() => setViewsEstimate(preset.value)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                      viewsEstimate === preset.value
+                        ? 'bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-white shadow-moon-glow border border-transparent'
+                        : 'bg-[#210635] text-[#F5D5E0]/70 border border-[#7B337E]/40 hover:text-[#F5D5E0]'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Slider & Result Box */}
+            <div className="w-full lg:max-w-md bg-[#210635]/90 rounded-2xl p-6 border border-[#7B337E]/40 space-y-5">
+              <div>
+                <div className="flex justify-between items-center text-xs sm:text-sm font-semibold mb-2">
+                  <span className="text-[#F5D5E0]/70">Estimasi Views TikTok / Reels:</span>
+                  <span className="text-[#F5D5E0] font-black text-base">{viewsEstimate.toLocaleString('id-ID')} views</span>
+                </div>
+                <input
+                  type="range"
+                  min="5000"
+                  max="1000000"
+                  step="5000"
+                  value={viewsEstimate}
+                  onChange={(e) => setViewsEstimate(Number(e.target.value))}
+                  className="w-full h-2.5 bg-[#420D4B] rounded-lg appearance-none cursor-pointer accent-[#6667AB]"
+                />
+                <div className="flex justify-between text-[10px] text-[#F5D5E0]/50 mt-1">
+                  <span>5K views</span>
+                  <span>500K views</span>
+                  <span>1 Juta views</span>
+                </div>
+              </div>
+
+              {/* Big Earnings Box */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-[#420D4B] to-[#7B337E]/40 border border-[#7B337E]/60 text-center space-y-1">
+                <span className="text-xs uppercase font-extrabold tracking-wider text-[#F5D5E0]/70">
+                  Perkiraan Komisi Diterima
+                </span>
+                <div className="text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight">
+                  Rp {estimatedEarnings.toLocaleString('id-ID')}
+                </div>
+                <span className="text-[11px] text-[#F5D5E0]/60 block">
+                  Berdasarkan tarif rata-rata Rp 18.000 / 1.000 views
+                </span>
+              </div>
+
+              {/* Action */}
+              <button
+                onClick={() => {
+                  const target = document.getElementById('campaigns-section');
+                  if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                  } else if (campaigns.length > 0) {
+                    openSubmitFor(campaigns[0]);
+                  }
+                }}
+                className="w-full py-3 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] hover:opacity-95 text-[#F5D5E0] shadow-moon-glow transition-all flex items-center justify-center gap-2"
+              >
+                <Scissors className="w-4 h-4 -rotate-45" />
+                <span>Pilih Episode & Mulai Gunting Klip</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* CAMPAIGN LIST & EXPLORE SECTION */}
-        <section className="space-y-6">
+        <section id="campaigns-section" className="space-y-6">
           {/* Header & Search */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>

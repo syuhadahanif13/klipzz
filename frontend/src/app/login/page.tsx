@@ -3,12 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scissors, Lock, Mail, ArrowRight, Eye, EyeOff, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Scissors, Lock, Mail, ArrowRight, Eye, EyeOff, Sparkles, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, loginAsDemoClipper, loginAsDemoAdmin } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,18 +33,14 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickLogin = async (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('password123');
-    setLoading(true);
-    setErrorMessage(null);
+  const handleDemoClipper = () => {
+    loginAsDemoClipper();
+    router.push('/dashboard');
+  };
 
-    const res = await signIn(demoEmail, 'password123');
-    setLoading(false);
-
-    if (res.success) {
-      router.push('/dashboard');
-    }
+  const handleDemoAdmin = () => {
+    loginAsDemoAdmin();
+    router.push('/dashboard');
   };
 
   return (
@@ -64,7 +60,7 @@ export default function LoginPage() {
           </span>
         </Link>
         <p className="text-xs text-[#F5D5E0]/70">
-          Platform Resmi Clipping Campaign & Monetisasi Video
+          Official Clipping Platform • @DipanggilKeRuangan Hub
         </p>
       </div>
 
@@ -75,7 +71,7 @@ export default function LoginPage() {
             Masuk ke Akun
           </h1>
           <p className="text-xs text-[#F5D5E0]/70 mt-1">
-            Akses dashboard pembuat klip atau kelola kampanye podcast.
+            Masuk sebagai <strong>Clipper</strong> untuk cek komisi atau <strong>Admin</strong> untuk mengelola kampanye.
           </p>
         </div>
 
@@ -96,7 +92,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nama@email.com"
+                placeholder="fajar@klipzz.vid / admin@dipanggilkeruangan.com"
                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#210635] border border-[#7B337E]/60 text-[#F5D5E0] placeholder-[#F5D5E0]/40 text-sm focus:outline-none focus:border-[#6667AB] transition-colors"
                 required
               />
@@ -152,25 +148,27 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Quick Demo Logins for Instant Testing */}
-        <div className="pt-2 border-t border-[#7B337E]/30 space-y-2">
-          <span className="text-[11px] text-[#F5D5E0]/60 block text-center">
-            Akses Cepat (Akun Demo)
+        {/* 1-Click Demo Login Shortcuts */}
+        <div className="pt-2 border-t border-[#7B337E]/30 space-y-2.5">
+          <span className="text-[11px] text-[#F5D5E0]/60 block text-center font-medium">
+            Atau Coba Akses Cepat (1-Klik Tanpa Password):
           </span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={() => handleQuickLogin('fajar@klipzz.vid')}
-              className="py-2 px-2.5 rounded-xl text-[11px] font-semibold bg-[#210635] hover:bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/40 text-center transition-colors"
+              onClick={handleDemoClipper}
+              className="py-2.5 px-3 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/50 text-center transition-colors flex items-center justify-center gap-1.5"
             >
-              Demo Clipper (Fajar)
+              <Scissors className="w-3.5 h-3.5 -rotate-45" />
+              <span>Role Clipper</span>
             </button>
             <button
               type="button"
-              onClick={() => handleQuickLogin('brand@dipanggilkeruangan.com')}
-              className="py-2 px-2.5 rounded-xl text-[11px] font-semibold bg-[#210635] hover:bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/40 text-center transition-colors"
+              onClick={handleDemoAdmin}
+              className="py-2.5 px-3 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-amber-300 border border-[#7B337E]/50 text-center transition-colors flex items-center justify-center gap-1.5"
             >
-              Demo Brand (Official)
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Role Admin</span>
             </button>
           </div>
         </div>

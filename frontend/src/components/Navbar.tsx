@@ -15,30 +15,25 @@ import {
   LogOut,
   User,
   ChevronDown,
+  Sparkles,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { UserProfile } from '../types';
 
 interface NavbarProps {
-  user?: UserProfile | null;
-  onToggleRole?: () => void;
   onOpenBioChallenge?: () => void;
   onOpenCreateCampaign?: () => void;
 }
 
 export function Navbar({
-  user: propUser,
-  onToggleRole: propToggleRole,
   onOpenBioChallenge,
   onOpenCreateCampaign,
 }: NavbarProps) {
   const pathname = usePathname();
-  const { user: authUser, signOut, toggleRole } = useAuth();
+  const { user, signOut, toggleRole, loginAsDemoClipper, loginAsDemoAdmin } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const activeUser = propUser !== undefined ? propUser : authUser;
-  const handleToggle = propToggleRole || toggleRole;
-  const isBrand = activeUser?.role === 'brand';
+  const isAdmin = user?.role === 'admin';
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-[#7B337E]/30 bg-[#210635]/90 backdrop-blur-md">
@@ -88,7 +83,7 @@ export function Navbar({
             >
               <span className="flex items-center gap-1.5">
                 <Scissors className="w-4 h-4 text-[#7B337E]" />
-                Clipper Studio
+                {isAdmin ? 'Admin Portal' : 'Clipper Studio'}
               </span>
             </Link>
 
@@ -110,22 +105,22 @@ export function Navbar({
 
         {/* Right Action Area */}
         <div className="flex items-center space-x-3 sm:space-x-4">
-          {activeUser ? (
+          {user ? (
             <>
-              {/* Quick Bio Verification Button */}
-              {!isBrand && onOpenBioChallenge && (
+              {/* Clipper Action: Bio Verification */}
+              {!isAdmin && onOpenBioChallenge && (
                 <button
                   onClick={onOpenBioChallenge}
                   className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/50 hover:border-[#F5D5E0]/50 transition-all shadow-sm"
                   title="Verifikasi Akun TikTok/Instagram dengan Bio Code"
                 >
                   <UserCheck className="w-3.5 h-3.5 text-[#6667AB]" />
-                  <span>Verifikasi Bio Sosmed</span>
+                  <span>Verifikasi Bio</span>
                 </button>
               )}
 
-              {/* Brand Action: New Campaign */}
-              {isBrand && onOpenCreateCampaign && (
+              {/* Admin Action: Create New Campaign */}
+              {isAdmin && onOpenCreateCampaign && (
                 <button
                   onClick={onOpenCreateCampaign}
                   className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-90 transition-all"
@@ -135,33 +130,35 @@ export function Navbar({
                 </button>
               )}
 
-              {/* Clipper Wallet Badge */}
-              {!isBrand && (
+              {/* Clipper Wallet Balance Pill */}
+              {!isAdmin && (
                 <Link
                   href="/dashboard"
-                  className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-[#420D4B]/80 border border-[#7B337E]/40 shadow-inner hover:border-emerald-400/40 transition-colors"
+                  className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#420D4B]/80 border border-[#7B337E]/40 shadow-inner hover:border-emerald-400/40 transition-colors"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-[#7B337E]/40 flex items-center justify-center">
-                    <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+                  <div className="w-5 h-5 rounded-md bg-[#7B337E]/40 flex items-center justify-center">
+                    <Wallet className="w-3 h-3 text-emerald-400" />
                   </div>
                   <div className="flex flex-col text-right">
-                    <span className="text-[10px] text-[#F5D5E0]/60 font-medium leading-none">Dompet</span>
+                    <span className="text-[9px] text-[#F5D5E0]/60 font-medium leading-none">Dompet</span>
                     <span className="text-xs font-bold text-emerald-400 leading-tight">
-                      Rp {activeUser.balance.toLocaleString('id-ID')}
+                      Rp {user.balance.toLocaleString('id-ID')}
                     </span>
                   </div>
                 </Link>
               )}
 
-              {/* Role Switcher Pill */}
+              {/* Role Indicator & Toggle Pill */}
               <button
-                onClick={handleToggle}
+                onClick={toggleRole}
                 className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[#210635] text-[#F5D5E0]/80 border border-[#6667AB]/40 hover:text-[#F5D5E0] hover:border-[#7B337E] transition-all"
-                title="Beralih mode Clipper / Brand"
+                title="Klik untuk beralih peran Admin / Clipper"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-[#6667AB]" />
                 <span className="hidden sm:inline">Role:</span>
-                <span className="capitalize font-bold text-[#F5D5E0]">{activeUser.role}</span>
+                <span className={`capitalize font-bold ${isAdmin ? 'text-amber-400' : 'text-[#F5D5E0]'}`}>
+                  {user.role}
+                </span>
               </button>
 
               {/* User Avatar with Dropdown */}
@@ -171,8 +168,8 @@ export function Navbar({
                   className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-[#420D4B]/60 transition-colors"
                 >
                   <img
-                    src={activeUser.avatar_url}
-                    alt={activeUser.full_name}
+                    src={user.avatar_url}
+                    alt={user.full_name}
                     className="w-9 h-9 rounded-xl border border-[#7B337E]/60 object-cover"
                   />
                   <ChevronDown className="w-3.5 h-3.5 text-[#F5D5E0]/60" />
@@ -182,10 +179,10 @@ export function Navbar({
                   <div className="absolute right-0 mt-2 w-48 glass-card rounded-2xl p-2 border border-[#7B337E]/50 shadow-moon-glow space-y-1 z-50">
                     <div className="px-3 py-2 border-b border-[#7B337E]/30">
                       <span className="font-bold text-xs text-[#F5D5E0] block truncate">
-                        {activeUser.full_name}
+                        {user.full_name}
                       </span>
                       <span className="text-[10px] text-[#6667AB] block truncate">
-                        @{activeUser.username}
+                        @{user.username} • <span className="capitalize text-amber-300 font-semibold">{user.role}</span>
                       </span>
                     </div>
 
@@ -195,7 +192,7 @@ export function Navbar({
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#F5D5E0] hover:bg-[#420D4B] transition-colors"
                     >
                       <User className="w-3.5 h-3.5 text-[#6667AB]" />
-                      <span>Clipper Dashboard</span>
+                      <span>{isAdmin ? 'Admin Portal' : 'Clipper Studio'}</span>
                     </Link>
 
                     <button
@@ -213,19 +210,37 @@ export function Navbar({
               </div>
             </>
           ) : (
-            /* Guest / Not Logged In Buttons */
-            <div className="flex items-center space-x-2">
+            /* Guest Experience: Seamless & Delightful Buttons */
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Quick Demo Preview Pills for Instant Tryout */}
+              <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#210635]/80 border border-[#7B337E]/40 text-xs">
+                <span className="text-[11px] text-[#F5D5E0]/60">Coba Mode:</span>
+                <button
+                  onClick={loginAsDemoClipper}
+                  className="px-2 py-0.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[11px] font-bold text-[#F5D5E0] transition-colors"
+                >
+                  Clipper
+                </button>
+                <button
+                  onClick={loginAsDemoAdmin}
+                  className="px-2 py-0.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[11px] font-bold text-amber-300 transition-colors"
+                >
+                  Admin
+                </button>
+              </div>
+
               <Link
                 href="/login"
                 className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#F5D5E0] hover:bg-[#420D4B]/60 border border-[#7B337E]/40 transition-colors"
               >
                 Masuk
               </Link>
+
               <Link
                 href="/signup"
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity"
               >
-                Daftar Sekarang
+                Daftar Akun
               </Link>
             </div>
           )}

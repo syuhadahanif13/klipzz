@@ -1,4 +1,4 @@
-export type UserRole = 'brand' | 'clipper' | 'admin';
+export type UserRole = 'admin' | 'clipper';
 export type SocialPlatform = 'tiktok' | 'instagram' | 'youtube_shorts';
 export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'flagged';
@@ -29,7 +29,7 @@ export interface SocialAccount {
 
 export interface Campaign {
   id: string;
-  brand_id: string;
+  brand_id?: string;
   title: string;
   description: string;
   source_youtube_url: string;

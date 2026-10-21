@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile, UserRole } from '../types';
-import { INITIAL_USER } from '../data/mockData';
+import { DEMO_CLIPPER, DEMO_ADMIN } from '../data/mockData';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -13,12 +13,15 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   toggleRole: () => void;
   setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
+  loginAsDemoClipper: () => void;
+  loginAsDemoAdmin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(INITIAL_USER);
+  // First time visitor is a Guest (user is null)
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Sync Supabase Auth Session
@@ -27,7 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          // Fetch user profile from Supabase
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
@@ -40,14 +42,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               username: profile.username,
               full_name: profile.full_name || profile.username,
               avatar_url: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-              role: profile.role || 'clipper',
+              role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
               balance: Number(profile.balance) || 0,
               total_earned: Number(profile.total_earned) || 0,
             });
           }
         }
       } catch (err) {
-        console.warn('Supabase session load error, using cached user:', err);
+        console.warn('Supabase session load error:', err);
       } finally {
         setLoading(false);
       }
@@ -55,7 +57,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     loadUserSession();
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         const { data: profile } = await supabase
@@ -70,13 +71,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: profile.username,
             full_name: profile.full_name || profile.username,
             avatar_url: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-            role: profile.role || 'clipper',
+            role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
             balance: Number(profile.balance) || 0,
             total_earned: Number(profile.total_earned) || 0,
           });
         }
       } else if (event === 'SIGNED_OUT') {
-        // Fall back to null or guest user
         setUser(null);
       }
     });
@@ -88,29 +88,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Demo shortcuts for convenience
+      if (email === 'fajar@klipzz.vid') {
+        setUser(DEMO_CLIPPER);
+        return { success: true };
+      }
+      if (email === 'admin@dipanggilkeruangan.com' || email === 'brand@dipanggilkeruangan.com') {
+        setUser(DEMO_ADMIN);
+        return { success: true };
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        // Quick fallback for demo accounts if user entered predefined demo accounts
-        if (email === 'fajar@klipzz.vid') {
-          setUser(INITIAL_USER);
-          return { success: true };
-        }
-        if (email === 'brand@dipanggilkeruangan.com') {
-          setUser({
-            id: '11111111-1111-1111-1111-111111111111',
-            username: 'dipanggilkeruangan_official',
-            full_name: 'DiPanggil ke Ruangan Official',
-            avatar_url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=200',
-            role: 'brand',
-            balance: 150000000,
-            total_earned: 0,
-          });
-          return { success: true };
-        }
         return { success: false, error: error.message };
       }
 
@@ -127,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: profile.username,
             full_name: profile.full_name || profile.username,
             avatar_url: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-            role: profile.role || 'clipper',
+            role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
             balance: Number(profile.balance) || 0,
             total_earned: Number(profile.total_earned) || 0,
           });
@@ -165,26 +158,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        // Upsert into public.profiles
-        const { error: profileError } = await supabase.from('profiles').upsert({
+        const avatarUrl = role === 'admin'
+          ? 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=200'
+          : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
+
+        await supabase.from('profiles').upsert({
           id: data.user.id,
           username,
           full_name: fullName,
           role,
           balance: 0,
           total_earned: 0,
-          avatar_url: `https://images.unsplash.com/photo-${role === 'brand' ? '1590602847861-f357a9332bbc' : '1535713875002-d1d0cf377fde'}?w=200`,
+          avatar_url: avatarUrl,
         });
-
-        if (profileError) {
-          console.error('Failed to create profile record:', profileError);
-        }
 
         setUser({
           id: data.user.id,
           username,
           full_name: fullName,
-          avatar_url: `https://images.unsplash.com/photo-${role === 'brand' ? '1590602847861-f357a9332bbc' : '1535713875002-d1d0cf377fde'}?w=200`,
+          avatar_url: avatarUrl,
           role,
           balance: 0,
           total_earned: 0,
@@ -198,7 +190,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn('Sign out warning:', e);
+    }
     setUser(null);
   };
 
@@ -206,8 +202,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setUser({
       ...user,
-      role: user.role === 'clipper' ? 'brand' : 'clipper',
+      role: user.role === 'clipper' ? 'admin' : 'clipper',
     });
+  };
+
+  const loginAsDemoClipper = () => {
+    setUser(DEMO_CLIPPER);
+  };
+
+  const loginAsDemoAdmin = () => {
+    setUser(DEMO_ADMIN);
   };
 
   return (
@@ -220,6 +224,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         toggleRole,
         setUser,
+        loginAsDemoClipper,
+        loginAsDemoAdmin,
       }}
     >
       {children}

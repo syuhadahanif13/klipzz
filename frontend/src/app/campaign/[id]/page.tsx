@@ -38,9 +38,9 @@ import { Campaign, SocialAccount, Submission } from '../../../types';
 
 function extractYoutubeId(url?: string, defaultId?: string): string {
   if (defaultId && defaultId.length === 11) return defaultId;
-  if (!url) return 'dQw4w9WgXcQ';
+  if (!url) return 'DHiELGxnAS4';
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-  return match ? match[1] : (defaultId || 'dQw4w9WgXcQ');
+  return match ? match[1] : (defaultId || 'DHiELGxnAS4');
 }
 
 export default function CampaignDetailPage() {
