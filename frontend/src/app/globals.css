@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-obsidian: #210635;
+  --color-surface: #420D4B;
+  --color-royal: #7B337E;
+  --color-slate: #6667AB;
+  --color-pink: #F5D5E0;
+}
+
+body {
+  background-color: #210635;
+  color: #F5D5E0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(66, 13, 75, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(123, 51, 126, 0.35);
+}
+
+.glass-panel-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel-hover:hover {
+  background: rgba(66, 13, 75, 0.9);
+  border-color: rgba(245, 213, 224, 0.4);
+  box-shadow: 0 0 25px -5px rgba(123, 51, 126, 0.45);
+  transform: translateY(-2px);
+}
+
+.glass-card {
+  background: linear-gradient(180deg, rgba(66, 13, 75, 0.8) 0%, rgba(33, 6, 53, 0.9) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(102, 103, 171, 0.25);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #210635;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #7B337E;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6667AB;
+}
