@@ -3,14 +3,14 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scissors, Lock, Mail, ArrowRight, Eye, EyeOff, Sparkles, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Scissors, Lock, User, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, loginAsDemoClipper, loginAsDemoAdmin } = useAuth();
+  const { signIn } = useAuth();
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,29 +18,19 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!identifier || !password) return;
 
     setLoading(true);
     setErrorMessage(null);
 
-    const res = await signIn(email, password);
+    const res = await signIn(identifier, password);
     setLoading(false);
 
     if (res.success) {
       router.push('/dashboard');
     } else {
-      setErrorMessage(res.error || 'Email atau kata sandi tidak valid.');
+      setErrorMessage(res.error || 'Username/email atau kata sandi tidak valid.');
     }
-  };
-
-  const handleDemoClipper = () => {
-    loginAsDemoClipper();
-    router.push('/dashboard');
-  };
-
-  const handleDemoAdmin = () => {
-    loginAsDemoAdmin();
-    router.push('/dashboard');
   };
 
   return (
@@ -71,13 +61,13 @@ export default function LoginPage() {
             Masuk ke Akun
           </h1>
           <p className="text-xs text-[#F5D5E0]/70 mt-1">
-            Masuk sebagai <strong>Clipper</strong> untuk cek komisi atau <strong>Admin</strong> untuk mengelola kampanye.
+            Gunakan kredensial akun terdaftar untuk mengakses platform.
           </p>
         </div>
 
         {errorMessage && (
-          <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="p-3.5 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-300 text-xs flex items-center gap-2.5 shadow-sm">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{errorMessage}</span>
           </div>
         )}
@@ -85,18 +75,18 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider mb-1.5">
-              Email
+              Username atau Email
             </label>
             <div className="relative">
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="fajar@klipzz.vid / admin@dipanggilkeruangan.com"
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="admin / clipper_hans"
                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#210635] border border-[#7B337E]/60 text-[#F5D5E0] placeholder-[#F5D5E0]/40 text-sm focus:outline-none focus:border-[#6667AB] transition-colors"
                 required
               />
-              <Mail className="w-4 h-4 text-[#F5D5E0]/40 absolute left-3.5 top-3.5" />
+              <User className="w-4 h-4 text-[#F5D5E0]/40 absolute left-3.5 top-3.5" />
             </div>
           </div>
 
@@ -148,33 +138,8 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* 1-Click Demo Login Shortcuts */}
-        <div className="pt-2 border-t border-[#7B337E]/30 space-y-2.5">
-          <span className="text-[11px] text-[#F5D5E0]/60 block text-center font-medium">
-            Atau Coba Akses Cepat (1-Klik Tanpa Password):
-          </span>
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={handleDemoClipper}
-              className="py-2.5 px-3 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/50 text-center transition-colors flex items-center justify-center gap-1.5"
-            >
-              <Scissors className="w-3.5 h-3.5 -rotate-45" />
-              <span>Role Clipper</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDemoAdmin}
-              className="py-2.5 px-3 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-amber-300 border border-[#7B337E]/50 text-center transition-colors flex items-center justify-center gap-1.5"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Role Admin</span>
-            </button>
-          </div>
-        </div>
-
         {/* Footer Link */}
-        <div className="text-center text-xs text-[#F5D5E0]/70 pt-2">
+        <div className="text-center text-xs text-[#F5D5E0]/70 pt-2 border-t border-[#7B337E]/30">
           Belum punya akun?{' '}
           <Link href="/signup" className="font-bold text-[#6667AB] hover:text-[#F5D5E0] underline">
             Daftar Sekarang

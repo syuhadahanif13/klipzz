@@ -8,13 +8,10 @@ import { DEMO_CLIPPER, DEMO_ADMIN } from '../data/mockData';
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, password: string, username: string, fullName: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
-  toggleRole: () => void;
   setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
-  loginAsDemoClipper: () => void;
-  loginAsDemoAdmin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,20 +21,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Sync Supabase Auth Session
+  // Sync session on mount
   useEffect(() => {
     async function loadUserSession() {
       try {
+        // 1. Check local session storage first for immediate instant hydration
+        if (typeof window !== 'undefined') {
+          const cachedSession = localStorage.getItem('klipzz_user_session');
+          if (cachedSession) {
+            try {
+              const parsed = JSON.parse(cachedSession) as UserProfile;
+              setUser(parsed);
+            } catch (_) {}
+          }
+        }
+
+        // 2. Sync with Supabase Auth
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
 
           if (profile) {
-            setUser({
+            const userObj: UserProfile = {
               id: profile.id,
               username: profile.username,
               full_name: profile.full_name || profile.username,
@@ -45,11 +54,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
               balance: Number(profile.balance) || 0,
               total_earned: Number(profile.total_earned) || 0,
-            });
+            };
+            setUser(userObj);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('klipzz_user_session', JSON.stringify(userObj));
+            }
           }
         }
       } catch (err) {
-        console.warn('Supabase session load error:', err);
+        console.warn('Session load notice:', err);
       } finally {
         setLoading(false);
       }
@@ -63,10 +76,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
 
         if (profile) {
-          setUser({
+          const userObj: UserProfile = {
             id: profile.id,
             username: profile.username,
             full_name: profile.full_name || profile.username,
@@ -74,10 +87,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
             balance: Number(profile.balance) || 0,
             total_earned: Number(profile.total_earned) || 0,
-          });
+          };
+          setUser(userObj);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('klipzz_user_session', JSON.stringify(userObj));
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('klipzz_user_session');
+        }
       }
     });
 
@@ -86,25 +106,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (identifier: string, password: string) => {
     try {
-      // Demo shortcuts for convenience
-      if (email === 'fajar@klipzz.vid') {
-        setUser(DEMO_CLIPPER);
-        return { success: true };
-      }
-      if (email === 'admin@dipanggilkeruangan.com' || email === 'brand@dipanggilkeruangan.com') {
+      const cleanId = identifier.trim().toLowerCase();
+
+      // Account 1: admin | psswd: m@juterusrajaemas
+      if (
+        (cleanId === 'admin' || cleanId === 'admin@klipzz.vid' || cleanId === 'admin@dipanggilkeruangan.com') &&
+        password === 'm@juterusrajaemas'
+      ) {
+        supabase.auth.signInWithPassword({ email: 'admin@klipzz.vid', password }).catch(() => {});
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('klipzz_user_session', JSON.stringify(DEMO_ADMIN));
+        }
         setUser(DEMO_ADMIN);
         return { success: true };
       }
 
+      // Account 2: clipper_hans | psswd: KramatRaya45.
+      if (
+        (cleanId === 'clipper_hans' || cleanId === 'clipper_hans@klipzz.vid' || cleanId === 'hans' || cleanId === 'hans@klipzz.vid') &&
+        password === 'KramatRaya45.'
+      ) {
+        supabase.auth.signInWithPassword({ email: 'clipper_hans@klipzz.vid', password }).catch(() => {});
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('klipzz_user_session', JSON.stringify(DEMO_CLIPPER));
+        }
+        setUser(DEMO_CLIPPER);
+        return { success: true };
+      }
+
+      // Supabase Auth verification for any additional registered users
+      const emailTarget = cleanId.includes('@') ? cleanId : `${cleanId}@klipzz.vid`;
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: emailTarget,
         password,
       });
 
       if (error) {
-        return { success: false, error: error.message };
+        return { success: false, error: 'Username/email atau kata sandi tidak sesuai. Silakan periksa kembali.' };
       }
 
       if (data.user) {
@@ -112,10 +152,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
 
         if (profile) {
-          setUser({
+          const userObj: UserProfile = {
             id: profile.id,
             username: profile.username,
             full_name: profile.full_name || profile.username,
@@ -123,13 +163,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
             balance: Number(profile.balance) || 0,
             total_earned: Number(profile.total_earned) || 0,
-          });
+          };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('klipzz_user_session', JSON.stringify(userObj));
+          }
+          setUser(userObj);
         }
       }
 
       return { success: true };
     } catch (err: any) {
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Gagal masuk akun' };
     }
   };
 
@@ -172,7 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           avatar_url: avatarUrl,
         });
 
-        setUser({
+        const userObj: UserProfile = {
           id: data.user.id,
           username,
           full_name: fullName,
@@ -180,7 +224,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role,
           balance: 0,
           total_earned: 0,
-        });
+        };
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('klipzz_user_session', JSON.stringify(userObj));
+        }
+        setUser(userObj);
       }
 
       return { success: true };
@@ -191,27 +240,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('klipzz_user_session');
+      }
       await supabase.auth.signOut();
     } catch (e) {
       console.warn('Sign out warning:', e);
     }
     setUser(null);
-  };
-
-  const toggleRole = () => {
-    if (!user) return;
-    setUser({
-      ...user,
-      role: user.role === 'clipper' ? 'admin' : 'clipper',
-    });
-  };
-
-  const loginAsDemoClipper = () => {
-    setUser(DEMO_CLIPPER);
-  };
-
-  const loginAsDemoAdmin = () => {
-    setUser(DEMO_ADMIN);
   };
 
   return (
@@ -222,10 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
-        toggleRole,
         setUser,
-        loginAsDemoClipper,
-        loginAsDemoAdmin,
       }}
     >
       {children}

@@ -30,7 +30,7 @@ import {
 import { SocialAccount, Submission } from '../../types';
 
 export default function DashboardPage() {
-  const { user, toggleRole } = useAuth();
+  const { user } = useAuth();
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
   const [submissions, setSubmissions] = useState<Submission[]>(MOCK_SUBMISSIONS);
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
