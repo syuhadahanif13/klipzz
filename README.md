@@ -1,10 +1,10 @@
-# 🎬 klipzz.vid - Platform Clipping Campaign DiPanggil ke Ruangan
+# klipzz.vid - Platform Clipping Campaign DiPanggil ke Ruangan
 
 > **Platform Clipping Campaign & Metrics Tracking Engine** yang menghubungkan brand & media creator dengan para clipper TikTok & Instagram Reels untuk memperluas jangkauan video podcast komedi melalui insentif bagi hasil berbasis views.
 
 ---
 
-## 🌌 1. MOON Design System & Palet Warna
+## 1. MOON Design System & Palet Warna
 Sistem desain mengusung estetika *Deep Purple & Glassmorphism* dengan kontras tinggi untuk pengalaman dark mode elegan:
 - **Obsidian Purple (`#210635`)**: Main Dark Canvas Background
 - **Surface Deep Purple (`#420D4B`)**: Card, Navbar, & Modal Container
@@ -14,7 +14,7 @@ Sistem desain mengusung estetika *Deep Purple & Glassmorphism* dengan kontras ti
 
 ---
 
-## 🎯 2. Pilot Campaign: YouTube @DipanggilKeRuangan
+## 2. Pilot Campaign: YouTube @DipanggilKeRuangan
 Platform ini dirancang khusus dengan kampanye pilot dari channel YouTube resmi **DiPanggil ke Ruangan** (Host: **Arif Brata & Dara Sarasvati**) dengan episode bintang tamu populer:
 1. **Abdur Arsyad & Mamat Alkatiri** - *Debat Panas Politik & Sketsa Timur*
 2. **Coki Pardede & Onad** - *Dark Comedy, Pengalaman Rehabilitasi & Industri*
@@ -25,7 +25,7 @@ Hashtag kampanye wajib: `#DipanggilKeRuangan` `#KlipzzViral`
 
 ---
 
-## 🔒 3. Proof-of-Ownership: Bio Code Challenge
+## 3. Proof-of-Ownership: Bio Code Challenge
 Platform **tidak menggunakan OAuth resmi** media sosial (menghindari rate limits dan persyaratan akun bisnis).
 1. Sistem menghasilkan kode acak 4 karakter unik (contoh: `KLIPZZ-89A2`) dengan masa berlaku 15 menit.
 2. Clipper menempelkan kode tersebut di Bio profil TikTok atau Instagram Reels mereka.
@@ -34,7 +34,7 @@ Platform **tidak menggunakan OAuth resmi** media sosial (menghindari rate limits
 
 ---
 
-## 🛠️ 4. Struktur Arsitektur Monorepo
+## 4. Struktur Arsitektur Monorepo
 ```
 klipzz_vid/
 ├── backend/                  # Express.js REST API & Apify Webhook Handler
@@ -63,7 +63,7 @@ klipzz_vid/
 
 ---
 
-## 🚀 5. Cara Menjalankan Secara Lokal
+## 5. Cara Menjalankan Secara Lokal
 
 ### A. Database Setup (Supabase)
 1. Buat project baru di Supabase.
