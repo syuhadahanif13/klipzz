@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Wallet,
@@ -20,20 +20,55 @@ import {
 import { Navbar } from '../../components/Navbar';
 import { BioChallengeModal } from '../../components/BioChallengeModal';
 import { CreateCampaignModal } from '../../components/CreateCampaignModal';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 import {
-  INITIAL_USER,
-  MOCK_CAMPAIGNS,
   MOCK_SOCIAL_ACCOUNTS,
   MOCK_SUBMISSIONS,
 } from '../../data/mockData';
-import { SocialAccount, Submission, UserProfile } from '../../types';
+import { SocialAccount, Submission } from '../../types';
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<UserProfile>(INITIAL_USER);
+  const { user, toggleRole } = useAuth();
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
   const [submissions, setSubmissions] = useState<Submission[]>(MOCK_SUBMISSIONS);
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Fetch live user data from Supabase
+  useEffect(() => {
+    async function loadUserData() {
+      if (!user) return;
+      try {
+        // Fetch social accounts
+        const { data: accounts } = await supabase
+          .from('social_accounts')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (accounts && accounts.length > 0) {
+          setSocialAccounts(accounts as SocialAccount[]);
+        }
+
+        // Fetch submissions
+        const { data: userSubs } = await supabase
+          .from('submissions')
+          .select(`
+            *,
+            campaign:campaigns(id, title, channel_name, episode_guest, rate_per_1k_views)
+          `)
+          .eq('clipper_id', user.id);
+
+        if (userSubs && userSubs.length > 0) {
+          setSubmissions(userSubs as Submission[]);
+        }
+      } catch (err) {
+        console.warn('Using fallback dashboard data:', err);
+      }
+    }
+
+    loadUserData();
+  }, [user]);
 
   const totalViews = submissions.reduce((sum, s) => sum + s.current_views, 0);
   const totalLikes = submissions.reduce((sum, s) => sum + s.current_likes, 0);
@@ -45,13 +80,6 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
       <Navbar
-        user={user}
-        onToggleRole={() =>
-          setUser((prev) => ({
-            ...prev,
-            role: prev.role === 'clipper' ? 'brand' : 'clipper',
-          }))
-        }
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
         onOpenCreateCampaign={() => setIsCreateModalOpen(true)}
       />
@@ -69,13 +97,23 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <Link
-            href="/"
-            className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 text-center flex items-center justify-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Jelajahi Episode Baru</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsBioModalOpen(true)}
+              className="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/60 transition-colors flex items-center gap-1.5"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Verifikasi Akun</span>
+            </button>
+
+            <Link
+              href="/"
+              className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 text-center flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Jelajahi Episode Baru</span>
+            </Link>
+          </div>
         </div>
 
         {/* METRICS STATS CARDS */}
@@ -89,7 +127,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="text-2xl font-black text-emerald-400">
-              Rp {user.balance.toLocaleString('id-ID')}
+              Rp {(user?.balance || 0).toLocaleString('id-ID')}
             </div>
             <button className="text-[11px] font-bold text-[#F5D5E0] underline hover:text-emerald-300">
               Tarik Saldo ke Rekening / E-Wallet →
@@ -141,7 +179,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* LINKED SOCIAL ACCOUNTS (PROOF-OF-OWNERSHIP) */}
+        {/* LINKED SOCIAL ACCOUNTS */}
         <section className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -201,7 +239,7 @@ export default function DashboardPage() {
                 Daftar Klip & Penghasilan Real-Time
               </h2>
               <p className="text-xs text-[#F5D5E0]/70">
-                Pencatatan metrik views & payout dihitung dari verifikasi link postingan.
+                Pencatatan metrik views & payout dihitung dari verifikasi link postingan oleh Apify Engine.
               </p>
             </div>
           </div>

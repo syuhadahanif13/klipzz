@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { X, Check, Copy, AlertCircle, RefreshCw, Sparkles, ExternalLink } from 'lucide-react';
 import { SocialAccount, SocialPlatform } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 
 interface BioChallengeModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface BioChallengeModalProps {
 }
 
 export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioChallengeModalProps) {
+  const { user } = useAuth();
   const [platform, setPlatform] = useState<SocialPlatform>('tiktok');
   const [handle, setHandle] = useState('');
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -47,16 +50,43 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
     setIsVerifying(true);
     setVerificationError(null);
 
-    // Call API or simulated Apify scraper
     try {
       const cleanHandle = handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`;
-      
-      // Simulate Apify scraping latency for realistic verification UX
-      await new Promise((resolve) => setTimeout(resolve, 1800));
+      const userId = user?.id || '22222222-2222-2222-2222-222222222222';
+      let accId = `acc_${Date.now()}`;
+
+      // Simulate Apify scraping delay
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      try {
+        const { data: dbAcc } = await supabase
+          .from('social_accounts')
+          .upsert(
+            {
+              user_id: userId,
+              platform,
+              handle: cleanHandle,
+              verification_code: generatedCode,
+              verification_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+              is_verified: true,
+              verified_at: new Date().toISOString(),
+              follower_count: 54200,
+            },
+            { onConflict: 'platform,handle' }
+          )
+          .select()
+          .single();
+
+        if (dbAcc) {
+          accId = dbAcc.id;
+        }
+      } catch (e) {
+        console.warn('Supabase social account save error:', e);
+      }
 
       const newAccount: SocialAccount = {
-        id: `acc_${Date.now()}`,
-        user_id: '22222222-2222-2222-2222-222222222222',
+        id: accId,
+        user_id: userId,
         platform,
         handle: cleanHandle,
         profile_url: platform === 'tiktok' ? `https://tiktok.com/${cleanHandle}` : `https://instagram.com/${cleanHandle.replace('@', '')}`,

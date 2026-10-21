@@ -1,25 +1,47 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Scissors, Wallet, Trophy, Flame, UserCheck, PlusCircle, ShieldCheck } from 'lucide-react';
+import {
+  Scissors,
+  Wallet,
+  Trophy,
+  Flame,
+  UserCheck,
+  PlusCircle,
+  ShieldCheck,
+  LogIn,
+  LogOut,
+  User,
+  ChevronDown,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { UserProfile } from '../types';
 
 interface NavbarProps {
-  user: UserProfile;
-  onToggleRole: () => void;
-  onOpenBioChallenge: () => void;
-  onOpenCreateCampaign: () => void;
+  user?: UserProfile | null;
+  onToggleRole?: () => void;
+  onOpenBioChallenge?: () => void;
+  onOpenCreateCampaign?: () => void;
 }
 
-export function Navbar({ user, onToggleRole, onOpenBioChallenge, onOpenCreateCampaign }: NavbarProps) {
+export function Navbar({
+  user: propUser,
+  onToggleRole: propToggleRole,
+  onOpenBioChallenge,
+  onOpenCreateCampaign,
+}: NavbarProps) {
   const pathname = usePathname();
+  const { user: authUser, signOut, toggleRole } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const isBrand = user.role === 'brand';
+  const activeUser = propUser !== undefined ? propUser : authUser;
+  const handleToggle = propToggleRole || toggleRole;
+  const isBrand = activeUser?.role === 'brand';
 
   return (
-    <header className="sticky top-0 z-40 w-full glass-panel border-b border-[#7B337E]/30 bg-[#210635]/85 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full glass-panel border-b border-[#7B337E]/30 bg-[#210635]/90 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         {/* Brand Logo */}
         <div className="flex items-center space-x-6">
@@ -30,12 +52,12 @@ export function Navbar({ user, onToggleRole, onOpenBioChallenge, onOpenCreateCam
             <div className="flex flex-col">
               <span className="text-xl font-black tracking-tight text-[#F5D5E0] flex items-center gap-1.5">
                 klipzz<span className="text-[#6667AB]">.vid</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-[#7B337E]/40 text-[#F5D5E0] border border-[#7B337E]/60">
-                  Pilot
+                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  PROD
                 </span>
               </span>
               <span className="text-[11px] text-[#F5D5E0]/60 -mt-1 font-medium">
-                @DipanggilKeRuangan Hub
+                Official Clipping Platform
               </span>
             </div>
           </Link>
@@ -88,61 +110,125 @@ export function Navbar({ user, onToggleRole, onOpenBioChallenge, onOpenCreateCam
 
         {/* Right Action Area */}
         <div className="flex items-center space-x-3 sm:space-x-4">
-          {/* Quick Bio Verification Button */}
-          {!isBrand && (
-            <button
-              onClick={onOpenBioChallenge}
-              className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/50 hover:border-[#F5D5E0]/50 transition-all shadow-sm"
-              title="Verifikasi Akun TikTok/Instagram dengan Bio Code"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-[#6667AB]" />
-              <span>Verifikasi Bio Sosmed</span>
-            </button>
-          )}
+          {activeUser ? (
+            <>
+              {/* Quick Bio Verification Button */}
+              {!isBrand && onOpenBioChallenge && (
+                <button
+                  onClick={onOpenBioChallenge}
+                  className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/50 hover:border-[#F5D5E0]/50 transition-all shadow-sm"
+                  title="Verifikasi Akun TikTok/Instagram dengan Bio Code"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-[#6667AB]" />
+                  <span>Verifikasi Bio Sosmed</span>
+                </button>
+              )}
 
-          {/* Brand Action: New Campaign */}
-          {isBrand && (
-            <button
-              onClick={onOpenCreateCampaign}
-              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-90 transition-all"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Buat Campaign</span>
-            </button>
-          )}
+              {/* Brand Action: New Campaign */}
+              {isBrand && onOpenCreateCampaign && (
+                <button
+                  onClick={onOpenCreateCampaign}
+                  className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-90 transition-all"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Buat Campaign</span>
+                </button>
+              )}
 
-          {/* Clipper Wallet Badge */}
-          {!isBrand && (
-            <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-[#420D4B]/80 border border-[#7B337E]/40 shadow-inner">
-              <div className="w-6 h-6 rounded-lg bg-[#7B337E]/40 flex items-center justify-center">
-                <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+              {/* Clipper Wallet Badge */}
+              {!isBrand && (
+                <Link
+                  href="/dashboard"
+                  className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-[#420D4B]/80 border border-[#7B337E]/40 shadow-inner hover:border-emerald-400/40 transition-colors"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-[#7B337E]/40 flex items-center justify-center">
+                    <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
+                  <div className="flex flex-col text-right">
+                    <span className="text-[10px] text-[#F5D5E0]/60 font-medium leading-none">Dompet</span>
+                    <span className="text-xs font-bold text-emerald-400 leading-tight">
+                      Rp {activeUser.balance.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </Link>
+              )}
+
+              {/* Role Switcher Pill */}
+              <button
+                onClick={handleToggle}
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[#210635] text-[#F5D5E0]/80 border border-[#6667AB]/40 hover:text-[#F5D5E0] hover:border-[#7B337E] transition-all"
+                title="Beralih mode Clipper / Brand"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#6667AB]" />
+                <span className="hidden sm:inline">Role:</span>
+                <span className="capitalize font-bold text-[#F5D5E0]">{activeUser.role}</span>
+              </button>
+
+              {/* User Avatar with Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-[#420D4B]/60 transition-colors"
+                >
+                  <img
+                    src={activeUser.avatar_url}
+                    alt={activeUser.full_name}
+                    className="w-9 h-9 rounded-xl border border-[#7B337E]/60 object-cover"
+                  />
+                  <ChevronDown className="w-3.5 h-3.5 text-[#F5D5E0]/60" />
+                </button>
+
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 glass-card rounded-2xl p-2 border border-[#7B337E]/50 shadow-moon-glow space-y-1 z-50">
+                    <div className="px-3 py-2 border-b border-[#7B337E]/30">
+                      <span className="font-bold text-xs text-[#F5D5E0] block truncate">
+                        {activeUser.full_name}
+                      </span>
+                      <span className="text-[10px] text-[#6667AB] block truncate">
+                        @{activeUser.username}
+                      </span>
+                    </div>
+
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#F5D5E0] hover:bg-[#420D4B] transition-colors"
+                    >
+                      <User className="w-3.5 h-3.5 text-[#6667AB]" />
+                      <span>Clipper Dashboard</span>
+                    </Link>
+
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        signOut();
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-300 hover:bg-rose-950/40 transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Keluar (Logout)</span>
+                    </button>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col text-right">
-                <span className="text-[10px] text-[#F5D5E0]/60 font-medium leading-none">Dompet</span>
-                <span className="text-xs font-bold text-emerald-400 leading-tight">
-                  Rp {user.balance.toLocaleString('id-ID')}
-                </span>
-              </div>
+            </>
+          ) : (
+            /* Guest / Not Logged In Buttons */
+            <div className="flex items-center space-x-2">
+              <Link
+                href="/login"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#F5D5E0] hover:bg-[#420D4B]/60 border border-[#7B337E]/40 transition-colors"
+              >
+                Masuk
+              </Link>
+              <Link
+                href="/signup"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity"
+              >
+                Daftar Sekarang
+              </Link>
             </div>
           )}
-
-          {/* Role Switcher Pill */}
-          <button
-            onClick={onToggleRole}
-            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-[#210635] text-[#F5D5E0]/80 border border-[#6667AB]/40 hover:text-[#F5D5E0] hover:border-[#7B337E] transition-all"
-            title="Klik untuk beralih mode preview Brand / Clipper"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-[#6667AB]" />
-            <span className="hidden sm:inline">Mode:</span>
-            <span className="capitalize font-bold text-[#F5D5E0]">{user.role}</span>
-          </button>
-
-          {/* User Avatar */}
-          <img
-            src={user.avatar_url}
-            alt={user.full_name}
-            className="w-9 h-9 rounded-xl border border-[#7B337E]/60 object-cover"
-          />
         </div>
       </div>
     </header>

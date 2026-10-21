@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Scissors,
@@ -20,16 +20,17 @@ import { Navbar } from '../components/Navbar';
 import { BioChallengeModal } from '../components/BioChallengeModal';
 import { SubmitClipModal } from '../components/SubmitClipModal';
 import { CreateCampaignModal } from '../components/CreateCampaignModal';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import {
-  INITIAL_USER,
   MOCK_CAMPAIGNS,
   MOCK_SOCIAL_ACCOUNTS,
   MOCK_SUBMISSIONS,
 } from '../data/mockData';
-import { Campaign, SocialAccount, Submission, UserProfile } from '../types';
+import { Campaign, SocialAccount, Submission } from '../types';
 
 export default function HomePage() {
-  const [user, setUser] = useState<UserProfile>(INITIAL_USER);
+  const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
   const [submissions, setSubmissions] = useState<Submission[]>(MOCK_SUBMISSIONS);
@@ -42,14 +43,26 @@ export default function HomePage() {
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Semua');
 
-  const handleToggleRole = () => {
-    setUser((prev) => ({
-      ...prev,
-      role: prev.role === 'clipper' ? 'brand' : 'clipper',
-    }));
-  };
+  // Load live campaigns from Supabase
+  useEffect(() => {
+    async function fetchCampaigns() {
+      try {
+        const { data, error } = await supabase
+          .from('campaigns')
+          .select('*')
+          .neq('status', 'draft')
+          .order('created_at', { ascending: false });
+
+        if (data && data.length > 0) {
+          setCampaigns(data as Campaign[]);
+        }
+      } catch (e) {
+        console.warn('Using fallback campaigns data:', e);
+      }
+    }
+    fetchCampaigns();
+  }, []);
 
   const handleAccountVerified = (account: SocialAccount) => {
     setSocialAccounts((prev) => [account, ...prev]);
@@ -57,11 +70,6 @@ export default function HomePage() {
 
   const handleSubmitSuccess = (newSub: Submission) => {
     setSubmissions((prev) => [newSub, ...prev]);
-    setUser((prev) => ({
-      ...prev,
-      balance: prev.balance + newSub.earnings,
-      total_earned: prev.total_earned + newSub.earnings,
-    }));
   };
 
   const handleCampaignCreated = (newCamp: Campaign) => {
@@ -84,8 +92,6 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
       <Navbar
-        user={user}
-        onToggleRole={handleToggleRole}
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
         onOpenCreateCampaign={() => setIsCreateModalOpen(true)}
       />
@@ -100,7 +106,7 @@ export default function HomePage() {
           <div className="relative z-10 max-w-3xl space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#420D4B]/80 text-[#F5D5E0] border border-[#7B337E]/60 text-xs font-semibold shadow-inner">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Pilot Official Campaign: @DipanggilKeRuangan</span>
+              <span>Official Partner Channel: @DipanggilKeRuangan</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight text-[#F5D5E0]">
@@ -135,6 +141,15 @@ export default function HomePage() {
                 <ShieldCheck className="w-4 h-4 text-[#6667AB]" />
                 <span>Verifikasi Bio Sosmed</span>
               </button>
+
+              {!user && (
+                <Link
+                  href="/login"
+                  className="px-5 py-3.5 rounded-2xl font-semibold text-sm bg-[#210635] hover:bg-[#420D4B] text-[#F5D5E0] border border-[#6667AB]/40 transition-all"
+                >
+                  Masuk Akun
+                </Link>
+              )}
             </div>
           </div>
 
@@ -177,7 +192,7 @@ export default function HomePage() {
                 Campaigns DiPanggil ke Ruangan
               </h2>
               <p className="text-xs sm:text-sm text-[#F5D5E0]/70 mt-1">
-                Pilih episode favoritmu, baca panduan punchline, dan setor link videomu.
+                Pilih episode favoritmu, buka Creator Kit, dan setor link videomu.
               </p>
             </div>
 
@@ -302,7 +317,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* HOW IT WORKS (CLIPPO-STYLE UX) */}
+        {/* HOW IT WORKS */}
         <section className="glass-card rounded-3xl p-8 sm:p-10 border border-[#7B337E]/40 space-y-8">
           <div className="text-center max-w-xl mx-auto space-y-2">
             <span className="text-xs uppercase font-extrabold tracking-widest text-[#6667AB]">

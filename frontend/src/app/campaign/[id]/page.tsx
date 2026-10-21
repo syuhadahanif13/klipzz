@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -9,47 +9,146 @@ import {
   Youtube,
   Hash,
   CheckCircle2,
-  AlertTriangle,
+  XCircle,
   Play,
   Wallet,
   Sparkles,
   Copy,
   Check,
+  Download,
+  Clock,
+  Eye,
+  Heart,
+  ExternalLink,
+  Share2,
+  ShieldAlert,
 } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
 import { BioChallengeModal } from '../../../components/BioChallengeModal';
 import { SubmitClipModal } from '../../../components/SubmitClipModal';
 import { CreateCampaignModal } from '../../../components/CreateCampaignModal';
+import { supabase } from '../../../lib/supabaseClient';
+import { useAuth } from '../../../context/AuthContext';
 import {
-  INITIAL_USER,
   MOCK_CAMPAIGNS,
   MOCK_SOCIAL_ACCOUNTS,
+  MOCK_SUBMISSIONS,
 } from '../../../data/mockData';
-import { Campaign, SocialAccount, Submission, UserProfile } from '../../../types';
+import { Campaign, SocialAccount, Submission } from '../../../types';
+
+function extractYoutubeId(url?: string, defaultId?: string): string {
+  if (defaultId && defaultId.length === 11) return defaultId;
+  if (!url) return 'dQw4w9WgXcQ';
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  return match ? match[1] : (defaultId || 'dQw4w9WgXcQ');
+}
 
 export default function CampaignDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const campaignId = params.id as string;
+  const campaignId = params?.id as string;
+  const { user } = useAuth();
 
-  const [user, setUser] = useState<UserProfile>(INITIAL_USER);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [loading, setLoading] = useState(true);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
-  const [campaign, setCampaign] = useState<Campaign | undefined>(
-    MOCK_CAMPAIGNS.find((c) => c.id === campaignId) || MOCK_CAMPAIGNS[0]
-  );
+  const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>([]);
 
+  // Modals
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [copiedTags, setCopiedTags] = useState(false);
+  const [submitSuccessNotice, setSubmitSuccessNotice] = useState<string | null>(null);
+
+  // Active video timestamp state
+  const [activeTimestamp, setActiveTimestamp] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function loadCampaignData() {
+      setLoading(true);
+      try {
+        // 1. Try fetching campaign from Supabase
+        const { data: dbCampaign, error: campErr } = await supabase
+          .from('campaigns')
+          .select('*')
+          .eq('id', campaignId)
+          .maybeSingle();
+
+        if (dbCampaign) {
+          setCampaign(dbCampaign as Campaign);
+        } else {
+          // Fallback to matching mock campaign
+          const fallback =
+            MOCK_CAMPAIGNS.find((c) => c.id === campaignId) ||
+            MOCK_CAMPAIGNS[0];
+          setCampaign(fallback);
+        }
+
+        // 2. Fetch submissions for this campaign
+        const { data: dbSubs } = await supabase
+          .from('submissions')
+          .select('*')
+          .eq('campaign_id', campaignId);
+
+        if (dbSubs && dbSubs.length > 0) {
+          setCampaignSubmissions(dbSubs as Submission[]);
+        } else {
+          setCampaignSubmissions(
+            MOCK_SUBMISSIONS.filter((s) => s.campaign_id === campaignId || s.campaign_id === 'c1111111-1111-1111-1111-111111111111')
+          );
+        }
+
+        // 3. Fetch user's social accounts if logged in
+        if (user) {
+          const { data: userAccs } = await supabase
+            .from('social_accounts')
+            .select('*')
+            .eq('user_id', user.id);
+
+          if (userAccs && userAccs.length > 0) {
+            setSocialAccounts(userAccs as SocialAccount[]);
+          }
+        }
+      } catch (err) {
+        console.warn('Error loading campaign detail:', err);
+        const fallback =
+          MOCK_CAMPAIGNS.find((c) => c.id === campaignId) ||
+          MOCK_CAMPAIGNS[0];
+        setCampaign(fallback);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (campaignId) {
+      loadCampaignData();
+    }
+  }, [campaignId, user]);
+
+  if (loading && !campaign) {
+    return (
+      <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col items-center justify-center space-y-3">
+        <div className="w-8 h-8 border-2 border-[#7B337E] border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs text-[#F5D5E0]/70">Memuat Creator Kit & Detail Campaign...</span>
+      </div>
+    );
+  }
 
   if (!campaign) {
     return (
-      <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold">Campaign Tidak Ditemukan</h2>
-          <Link href="/" className="text-sm font-semibold text-[#6667AB] hover:underline">
-            Kembali ke Beranda
+      <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col items-center justify-center p-4">
+        <div className="glass-card rounded-3xl p-8 border border-[#7B337E]/40 text-center max-w-md space-y-4">
+          <ShieldAlert className="w-12 h-12 text-[#6667AB] mx-auto" />
+          <h2 className="text-xl font-bold">Campaign Tidak Ditemukan</h2>
+          <p className="text-xs text-[#F5D5E0]/70">
+            Episode yang kamu cari mungkin telah selesai atau tautan yang kamu buka tidak valid.
+          </p>
+          <Link
+            href="/"
+            className="inline-block py-2.5 px-5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0]"
+          >
+            Kembali ke Semua Campaign
           </Link>
         </div>
       </div>
@@ -62,26 +161,46 @@ export default function CampaignDetailPage() {
     setTimeout(() => setCopiedTags(false), 2000);
   };
 
+  const videoEmbedId = extractYoutubeId(campaign.source_youtube_url, campaign.youtube_video_id);
+
   const claimedPercentage = Math.round(
     ((campaign.reward_pool - campaign.remaining_pool) / campaign.reward_pool) * 100
   );
 
+  const punchlineTimestamps = [
+    { time: '04:15', seconds: 255, title: 'Momen Pembuka & Reaksi Panik Guest' },
+    { time: '12:30', seconds: 750, title: 'Punchline Utama / Debat Adu Argumen' },
+    { time: '21:45', seconds: 1305, title: 'Roasting Keras Arif Brata & Dara' },
+    { time: '34:20', seconds: 2060, title: 'Punchline Penutup / Momen Amplop' },
+  ];
+
   return (
     <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
       <Navbar
-        user={user}
-        onToggleRole={() =>
-          setUser((prev) => ({
-            ...prev,
-            role: prev.role === 'clipper' ? 'brand' : 'clipper',
-          }))
-        }
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
         onOpenCreateCampaign={() => setIsCreateModalOpen(true)}
       />
 
+      {/* Floating Success Banner */}
+      {submitSuccessNotice && (
+        <div className="sticky top-20 z-50 max-w-7xl mx-auto w-full px-4 pt-4">
+          <div className="p-4 rounded-2xl bg-emerald-950/90 border border-emerald-400/60 shadow-moon-glow flex items-center justify-between text-xs text-emerald-200">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <span>{submitSuccessNotice}</span>
+            </div>
+            <Link
+              href="/dashboard"
+              className="font-bold underline text-emerald-300 hover:text-white"
+            >
+              Lihat di Dashboard →
+            </Link>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Breadcrumb Back */}
+        {/* Back Link */}
         <div>
           <Link
             href="/"
@@ -92,8 +211,8 @@ export default function CampaignDetailPage() {
           </Link>
         </div>
 
-        {/* TOP CAMPAIGN BANNER & STATS */}
-        <div className="glass-card rounded-3xl p-6 sm:p-8 border border-[#7B337E]/40 space-y-6">
+        {/* HERO CAMPAIGN HEADER */}
+        <section className="glass-card rounded-3xl p-6 sm:p-8 border border-[#7B337E]/40 space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-3 max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
@@ -102,6 +221,9 @@ export default function CampaignDetailPage() {
                 </span>
                 <span className="px-3 py-1 rounded-full bg-[#420D4B] text-[#6667AB] border border-[#6667AB]/40 text-xs font-bold">
                   Bintang Tamu: {campaign.episode_guest}
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-semibold">
+                  Status: Active Payout
                 </span>
               </div>
               <h1 className="text-2xl sm:text-4xl font-black text-[#F5D5E0] leading-tight">
@@ -124,7 +246,7 @@ export default function CampaignDetailPage() {
             </div>
           </div>
 
-          {/* Reward Pool Status Bar */}
+          {/* Budget Pool Bar */}
           <div className="p-4 rounded-2xl bg-[#210635]/80 border border-[#7B337E]/30 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
               <span className="text-[#F5D5E0]/70 font-semibold">
@@ -137,68 +259,161 @@ export default function CampaignDetailPage() {
 
             <div className="w-full h-3 rounded-full bg-[#420D4B] overflow-hidden border border-[#7B337E]/40">
               <div
-                className="h-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] rounded-full"
+                className="h-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] rounded-full transition-all duration-500"
                 style={{ width: `${claimedPercentage}%` }}
               />
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* TWO COLUMN: VIDEO PREVIEW & CREATOR KIT */}
+        {/* 2-COLUMN MAIN CONTENT: VIDEO & CREATOR KIT */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left: Video Player Embed */}
+          {/* Left 2 Cols: Video Player & Punchline Bookmarks */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Embedded Video Player */}
             <div className="glass-card rounded-2xl p-4 sm:p-6 border border-[#7B337E]/40 space-y-4">
-              <h2 className="text-lg font-bold text-[#F5D5E0] flex items-center gap-2">
-                <Youtube className="w-5 h-5 text-red-500" />
-                <span>Video Podcast Asli</span>
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-base sm:text-lg font-bold text-[#F5D5E0] flex items-center gap-2">
+                  <Youtube className="w-5 h-5 text-red-500" />
+                  <span>Video Podcast Asli (Source Footage)</span>
+                </h2>
+                <a
+                  href={campaign.source_youtube_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-bold text-[#6667AB] hover:text-[#F5D5E0] flex items-center gap-1"
+                >
+                  <span>Buka di YouTube</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
 
+              {/* YouTube Iframe Player */}
               <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-[#7B337E]/40 shadow-inner">
                 <iframe
                   className="w-full h-full"
-                  src={`https://www.youtube.com/embed/${campaign.youtube_video_id}`}
+                  src={`https://www.youtube.com/embed/${videoEmbedId}${activeTimestamp ? `?start=${activeTimestamp}&autoplay=1` : ''}`}
                   title={campaign.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
               </div>
 
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[#F5D5E0]/60">Channel: DiPanggil ke Ruangan Official</span>
+              {/* Footage Download & Action Row */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <span className="text-xs text-[#F5D5E0]/60">
+                  Resolusi Asli: 1080p 60fps • Format Vertikal 9:16 disarankan
+                </span>
                 <a
-                  href={campaign.source_youtube_url}
+                  href={`https://en.savefrom.net/20/#url=${encodeURIComponent(campaign.source_youtube_url)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-bold text-[#6667AB] hover:text-[#F5D5E0] flex items-center gap-1"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#420D4B] hover:bg-[#7B337E] text-xs font-semibold text-[#F5D5E0] border border-[#7B337E]/50 transition-colors"
                 >
-                  <span>Buka di YouTube App</span>
-                  <Play className="w-3 h-3 fill-current" />
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Footage Video</span>
                 </a>
               </div>
             </div>
 
-            {/* Panduan Punchline & Editorial Brief */}
+            {/* PUNCHLINE BOOKMARKS / TIMESTAMPS */}
+            <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-[#F5D5E0] flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#6667AB]" />
+                  <span>Rekomendasi Menit Punchline (Viral Potential)</span>
+                </h3>
+                <span className="text-xs text-[#F5D5E0]/60">Klik untuk lompat ke menit</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {punchlineTimestamps.map((ts, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveTimestamp(ts.seconds)}
+                    className="p-3.5 rounded-xl bg-[#210635]/80 hover:bg-[#420D4B] border border-[#7B337E]/40 hover:border-[#6667AB] transition-all text-left flex items-start gap-3 group"
+                  >
+                    <div className="px-2 py-1 rounded-lg bg-[#7B337E]/40 group-hover:bg-[#7B337E] text-xs font-mono font-bold text-[#F5D5E0] shrink-0">
+                      {ts.time}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-[#F5D5E0] block leading-snug group-hover:text-emerald-300 transition-colors">
+                        {ts.title}
+                      </span>
+                      <span className="text-[10px] text-[#F5D5E0]/50 mt-0.5 block">
+                        Durasi klip ideal: 30 - 60 detik
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* CREATOR GUIDELINES (DO'S & DON'TS) */}
             <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
               <h3 className="text-base font-bold text-[#F5D5E0] flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-[#6667AB]" />
-                <span>Panduan Gunting Klip (Punchline Brief)</span>
+                <span>Panduan Editorial & Standar Kualitas Klip</span>
               </h3>
 
-              <ul className="space-y-2.5 text-xs text-[#F5D5E0]/80">
-                {campaign.guidelines.map((g, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>{g}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* DO's */}
+                <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30 space-y-2.5">
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">
+                    Wajib Dilakukan (Do's):
+                  </span>
+                  <ul className="space-y-2 text-xs text-[#F5D5E0]/90">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>Fokus pada punchline lucu, reaksi mimik wajah, dan momen kaget.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>Gunakan subtitle dinamis dengan font tebal (Komika Axis / Bold).</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>Sertakan hook visual atau teks pancingan di 3 detik awal.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>Wajib sertakan seluruh hashtag kampanye di caption video.</span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* DONT's */}
+                <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 space-y-2.5">
+                  <span className="text-xs font-bold text-rose-400 uppercase tracking-wider block">
+                    Dilarang Keras (Don'ts):
+                  </span>
+                  <ul className="space-y-2 text-xs text-[#F5D5E0]/90">
+                    <li className="flex items-start gap-2">
+                      <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                      <span>Dilarang membuat clickbait hoaks atau menggiring opini negatif SARA.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                      <span>Dilarang reupload mentah tanpa crop 9:16 atau tanpa subtitle.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                      <span>Dilarang menutup muka pembicara dengan watermark pribadi terlalu besar.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                      <span>Dilarang menggunakan bot views (terdeteksi auto-reject oleh Apify).</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Right: Creator Kit & Rules */}
+          {/* Right 1 Col: Creator Kit, Hashtags, Payout Terms */}
           <div className="space-y-6">
-            {/* Required Hashtags Box */}
+            {/* HASHTAG BOX */}
             <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-[#F5D5E0] flex items-center gap-1.5">
@@ -227,19 +442,26 @@ export default function CampaignDetailPage() {
               </div>
 
               <p className="text-[11px] text-[#F5D5E0]/60">
-                Pastikan seluruh hashtag di atas ada di caption TikTok atau Instagram Reels kamu agar sistem scraper memvalidasi kelayakan komisi.
+                Sistem Apify Scraper Engine akan memeriksa keberadaan hashtag ini secara otomatis di caption TikTok atau Instagram Reels kamu.
               </p>
             </div>
 
-            {/* Payout Terms Card */}
+            {/* PAYOUT TERMS */}
             <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-3">
               <h3 className="text-sm font-bold text-[#F5D5E0]">
-                Ketentuan Payout
+                Ketentuan Pembayaran Komisi
               </h3>
 
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between py-1.5 border-b border-[#7B337E]/20">
-                  <span className="text-[#F5D5E0]/60">Minimal Views</span>
+                  <span className="text-[#F5D5E0]/60">Tarif per 1.000 Views</span>
+                  <span className="font-extrabold text-emerald-400">
+                    Rp {campaign.rate_per_1k_views.toLocaleString('id-ID')}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-1.5 border-b border-[#7B337E]/20">
+                  <span className="text-[#F5D5E0]/60">Minimal Views Awal</span>
                   <span className="font-bold text-[#F5D5E0]">
                     {campaign.min_views_threshold.toLocaleString('id-ID')} views
                   </span>
@@ -253,22 +475,65 @@ export default function CampaignDetailPage() {
                 </div>
 
                 <div className="flex justify-between py-1.5">
-                  <span className="text-[#F5D5E0]/60">Interval Sinkronisasi</span>
-                  <span className="font-bold text-[#6667AB]">Tiap 15 Menit</span>
+                  <span className="text-[#F5D5E0]/60">Interval Sinkronisasi Apify</span>
+                  <span className="font-bold text-[#6667AB]">Setiap 15 Menit</span>
                 </div>
               </div>
 
               <button
                 onClick={() => setIsSubmitModalOpen(true)}
-                className="w-full mt-2 py-3 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95"
+                className="w-full mt-3 py-3.5 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity flex items-center justify-center gap-2"
               >
-                Kirimkan Link Video Klip
+                <Scissors className="w-4 h-4 -rotate-45" />
+                <span>Submit Link Video Klip</span>
               </button>
+            </div>
+
+            {/* RECENT SUBMISSIONS ON THIS CAMPAIGN */}
+            <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-3">
+              <h3 className="text-sm font-bold text-[#F5D5E0] flex items-center justify-between">
+                <span>Klip yang Sudah Disetor</span>
+                <span className="text-xs text-[#6667AB] font-semibold">{campaignSubmissions.length} Klip</span>
+              </h3>
+
+              <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                {campaignSubmissions.map((sub) => (
+                  <div
+                    key={sub.id}
+                    className="p-3 rounded-xl bg-[#210635]/80 border border-[#7B337E]/30 flex items-center justify-between text-xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-[#420D4B] flex items-center justify-center font-bold text-[10px] text-[#F5D5E0] uppercase">
+                        {sub.platform === 'tiktok' ? 'TT' : 'IG'}
+                      </div>
+                      <div>
+                        <span className="font-bold text-[#F5D5E0] block leading-snug">
+                          {sub.current_views.toLocaleString('id-ID')} Views
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-semibold">
+                          Rp {sub.earnings.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <a
+                      href={sub.post_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors"
+                      title="Buka Video"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </main>
 
+      {/* Modals */}
       <BioChallengeModal
         isOpen={isBioModalOpen}
         onClose={() => setIsBioModalOpen(false)}
@@ -281,8 +546,11 @@ export default function CampaignDetailPage() {
         campaign={campaign}
         socialAccounts={socialAccounts}
         onSubmitSuccess={(newSub) => {
-          alert(`Klip berhasil disetor! Views awal: ${newSub.current_views.toLocaleString('id-ID')}`);
-          router.push('/dashboard');
+          setCampaignSubmissions((prev) => [newSub, ...prev]);
+          setSubmitSuccessNotice(
+            `Klip berhasil disetor! Views awal: ${newSub.current_views.toLocaleString('id-ID')}, komisi terhitung Rp ${newSub.earnings.toLocaleString('id-ID')}.`
+          );
+          setTimeout(() => setSubmitSuccessNotice(null), 8000);
         }}
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
@@ -290,7 +558,7 @@ export default function CampaignDetailPage() {
       <CreateCampaignModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCampaignCreated={(camp) => console.log('Created:', camp)}
+        onCampaignCreated={(camp) => console.log('Created campaign:', camp)}
       />
     </div>
   );

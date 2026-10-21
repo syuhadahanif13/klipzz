@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { X, Send, Hash, CheckCircle2, AlertCircle, Sparkles, Link2 } from 'lucide-react';
 import { Campaign, SocialAccount, Submission } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 
 interface SubmitClipModalProps {
   isOpen: boolean;
@@ -21,6 +23,7 @@ export function SubmitClipModal({
   onSubmitSuccess,
   onOpenBioChallenge,
 }: SubmitClipModalProps) {
+  const { user } = useAuth();
   const [postUrl, setPostUrl] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState(
     socialAccounts.length > 0 ? socialAccounts[0].id : ''
@@ -35,6 +38,11 @@ export function SubmitClipModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!postUrl.trim()) return;
+
+    if (!user) {
+      setErrorMsg('Kamu harus masuk / login terlebih dahulu untuk menyetor klip.');
+      return;
+    }
 
     if (verifiedAccounts.length === 0) {
       setErrorMsg('Kamu harus memverifikasi minimal 1 akun sosial media terlebih dahulu.');
@@ -53,32 +61,50 @@ export function SubmitClipModal({
     setErrorMsg(null);
 
     try {
-      // Simulate Apify scraping delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const selectedAcc = socialAccounts.find((a) => a.id === selectedAccountId) || socialAccounts[0];
-      const simulatedViews = Math.floor(Math.random() * 25000) + 5000;
-      const simulatedLikes = Math.floor(simulatedViews * 0.15);
+      const selectedAcc = socialAccounts.find((a) => a.id === selectedAccountId) || verifiedAccounts[0];
+      const simulatedViews = Math.floor(Math.random() * 25000) + 8500;
+      const simulatedLikes = Math.floor(simulatedViews * 0.14);
       const simulatedEarnings = Math.min(
         campaign.max_payout_per_clip,
         (simulatedViews / 1000) * campaign.rate_per_1k_views
       );
 
-      const newSubmission: Submission = {
-        id: `sub_${Date.now()}`,
+      const submissionPayload = {
         campaign_id: campaign.id,
-        clipper_id: '22222222-2222-2222-2222-222222222222',
-        social_account_id: selectedAcc?.id,
+        clipper_id: user.id,
+        social_account_id: selectedAcc?.id || null,
         post_url: postUrl.trim(),
         platform: isTikTok ? 'tiktok' : 'instagram',
         caption: `Keseruan episode ${campaign.episode_guest}! ${campaign.hashtag_requirements.join(' ')}`,
         thumbnail_url: campaign.thumbnail_url,
         current_views: simulatedViews,
         current_likes: simulatedLikes,
-        current_comments: Math.floor(simulatedViews * 0.01),
-        current_shares: Math.floor(simulatedViews * 0.04),
+        current_comments: Math.floor(simulatedViews * 0.012),
+        current_shares: Math.floor(simulatedViews * 0.038),
         earnings: simulatedEarnings,
         status: 'approved',
+        last_scraped_at: new Date().toISOString(),
+      };
+
+      // Try inserting into Supabase
+      let savedSubmissionId = `sub_${Date.now()}`;
+      try {
+        const { data: dbSub, error: dbErr } = await supabase
+          .from('submissions')
+          .insert(submissionPayload)
+          .select()
+          .single();
+
+        if (dbSub) {
+          savedSubmissionId = dbSub.id;
+        }
+      } catch (insertErr) {
+        console.warn('Could not save to Supabase directly, saving to client state:', insertErr);
+      }
+
+      const newSubmission: Submission = {
+        id: savedSubmissionId,
+        ...submissionPayload,
         created_at: new Date().toISOString(),
         campaign: {
           id: campaign.id,
@@ -87,7 +113,7 @@ export function SubmitClipModal({
           episode_guest: campaign.episode_guest,
           rate_per_1k_views: campaign.rate_per_1k_views,
         },
-      };
+      } as Submission;
 
       onSubmitSuccess(newSubmission);
       onClose();
