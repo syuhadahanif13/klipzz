@@ -14,12 +14,12 @@ Sistem desain mengusung estetika *Deep Purple & Glassmorphism* dengan kontras ti
 
 ---
 
-## 2. Pilot Campaign: YouTube @DipanggilKeRuangan
-Platform ini dirancang khusus dengan kampanye pilot dari channel YouTube resmi **DiPanggil ke Ruangan** (Host: **Arif Brata & Dara Sarasvati**) dengan episode bintang tamu populer:
-1. **Abdur Arsyad & Mamat Alkatiri** - *Debat Panas Politik & Sketsa Timur*
-2. **Coki Pardede & Onad** - *Dark Comedy, Pengalaman Rehabilitasi & Industri*
-3. **Praz Teguh & Tretan Muslim** - *Madura Pride vs Padang Sambalado*
-4. **Dodit Mulyanto** - *Biola Maut & Trik PDKT Gadis Desa*
+## 2. Official Campaign Partner: YouTube @DipanggilKeRuangan
+Platform ini terintegrasi dengan channel YouTube resmi **DiPanggil ke Ruangan** (Host: **Arif Brata & Dara Sarasvati**) dengan episode bintang tamu populer:
+1. **Abdur Arsyad & Mamat Alkatiri** - *Gara-gara Abdur, Mamat Alkatiri Udah Gamau Main Film Lagi!*
+2. **Dodit Mulyanto & Laura Moane** - *Perubahan Dodit Mulyanto Bikin Laura Moane Bertanya-tanya*
+3. **Duo Bahlul** - *Duo Bahlul Ternyata Seorang Duo yang Jarang Nongkrong Bareng*
+4. **Aldi Taher** - *Aldi Taher Cerita Master Saiful Datang di Waktu yang Tepat!*
 
 Hashtag kampanye wajib: `#DipanggilKeRuangan` `#KlipzzViral`
 
@@ -56,7 +56,7 @@ klipzz_vid/
 │   └── Dockerfile
 ├── supabase/
 │   ├── migrations/           # SQL Schema, Triggers, RLS Policies, Functions
-│   └── seed.sql              # Pilot data @DipanggilKeRuangan
+│   └── seed.sql              # Official campaigns seed data (@DipanggilKeRuangan)
 ├── docker-compose.yml        # Orchestration untuk Self-Hosted VPS / Coolify
 └── README.md
 ```

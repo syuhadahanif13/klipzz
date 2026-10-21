@@ -45,11 +45,8 @@ export function Navbar({
               <Scissors className="w-5 h-5 text-[#F5D5E0] -rotate-45" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black tracking-tight text-[#F5D5E0] flex items-center gap-1.5">
+              <span className="text-xl font-black tracking-tight text-[#F5D5E0] flex items-center">
                 klipzz<span className="text-[#6667AB]">.vid</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  PROD
-                </span>
               </span>
               <span className="text-[11px] text-[#F5D5E0]/60 -mt-1 font-medium">
                 Official Clipping Platform
