@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { X, Send, Hash, CheckCircle2, AlertCircle, Sparkles, Link2 } from 'lucide-react';
 import { Campaign, SocialAccount, Submission } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -148,7 +149,35 @@ export function SubmitClipModal({
           </p>
         </div>
 
-        {verifiedAccounts.length === 0 ? (
+        {!user ? (
+          <div className="p-5 rounded-xl bg-purple-950/40 border border-[#7B337E]/60 text-xs space-y-3 text-center">
+            <div className="w-12 h-12 mx-auto rounded-xl bg-[#420D4B] flex items-center justify-center text-[#6667AB]">
+              <AlertCircle className="w-6 h-6 text-amber-400" />
+            </div>
+            <div className="font-bold text-sm text-[#F5D5E0]">
+              Silakan Masuk / Login Terlebih Dahulu
+            </div>
+            <p className="text-[#F5D5E0]/70 max-w-sm mx-auto">
+              Kamu perlu masuk ke akun klipzz.vid kamu untuk menyetor klip dan melacak views serta pencairan komisi otomatis.
+            </p>
+            <div className="flex gap-2 justify-center pt-2">
+              <Link
+                href="/login"
+                onClick={onClose}
+                className="py-2.5 px-5 rounded-xl font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow"
+              >
+                Masuk Akun
+              </Link>
+              <Link
+                href="/signup"
+                onClick={onClose}
+                className="py-2.5 px-5 rounded-xl font-semibold bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/40"
+              >
+                Daftar Baru
+              </Link>
+            </div>
+          </div>
+        ) : verifiedAccounts.length === 0 ? (
           <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs space-y-3">
             <div className="flex items-center gap-2 font-bold">
               <AlertCircle className="w-4 h-4 text-amber-400" />

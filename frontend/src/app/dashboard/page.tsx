@@ -31,27 +31,31 @@ import { SocialAccount, Submission } from '../../types';
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
-  const [submissions, setSubmissions] = useState<Submission[]>(MOCK_SUBMISSIONS);
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Fetch live user data from Supabase
   useEffect(() => {
     async function loadUserData() {
-      if (!user) return;
+      if (!user) {
+        setSocialAccounts([]);
+        setSubmissions([]);
+        return;
+      }
       try {
-        // Fetch social accounts
+        // Fetch social accounts for logged in user
         const { data: accounts } = await supabase
           .from('social_accounts')
           .select('*')
           .eq('user_id', user.id);
 
-        if (accounts && accounts.length > 0) {
+        if (accounts) {
           setSocialAccounts(accounts as SocialAccount[]);
         }
 
-        // Fetch submissions
+        // Fetch submissions for logged in user
         const { data: userSubs } = await supabase
           .from('submissions')
           .select(`
@@ -60,11 +64,11 @@ export default function DashboardPage() {
           `)
           .eq('clipper_id', user.id);
 
-        if (userSubs && userSubs.length > 0) {
+        if (userSubs) {
           setSubmissions(userSubs as Submission[]);
         }
       } catch (err) {
-        console.warn('Using fallback dashboard data:', err);
+        console.warn('Error loading dashboard data:', err);
       }
     }
 
@@ -198,38 +202,55 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {socialAccounts.map((acc) => (
-              <div
-                key={acc.id}
-                className="p-4 rounded-xl bg-[#210635]/80 border border-[#7B337E]/40 flex items-center justify-between"
+          {socialAccounts.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-3">
+              <ShieldCheck className="w-8 h-8 text-[#6667AB] mx-auto" />
+              <p className="text-xs text-[#F5D5E0]/70 max-w-sm mx-auto">
+                {user
+                  ? 'Belum ada akun sosial media (TikTok / Instagram) yang terhubung. Hubungkan akunmu untuk melacak klip.'
+                  : 'Silakan masuk ke akunmu untuk melihat akun sosmed terverifikasi.'}
+              </p>
+              <button
+                onClick={() => setIsBioModalOpen(true)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#420D4B] border border-[#6667AB]/40 flex items-center justify-center font-bold uppercase text-xs text-[#F5D5E0]">
-                    {acc.platform === 'tiktok' ? 'TT' : 'IG'}
+                Hubungkan Akun Baru
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {socialAccounts.map((acc) => (
+                <div
+                  key={acc.id}
+                  className="p-4 rounded-xl bg-[#210635]/80 border border-[#7B337E]/40 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#420D4B] border border-[#6667AB]/40 flex items-center justify-center font-bold uppercase text-xs text-[#F5D5E0]">
+                      {acc.platform === 'tiktok' ? 'TT' : 'IG'}
+                    </div>
+                    <div>
+                      <span className="font-bold text-sm text-[#F5D5E0] block leading-snug">
+                        {acc.handle}
+                      </span>
+                      <span className="text-[11px] text-[#F5D5E0]/60">
+                        {Number(acc.follower_count || 0).toLocaleString('id-ID')} followers
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-bold text-sm text-[#F5D5E0] block leading-snug">
-                      {acc.handle}
-                    </span>
-                    <span className="text-[11px] text-[#F5D5E0]/60">
-                      {acc.follower_count.toLocaleString('id-ID')} followers
-                    </span>
-                  </div>
-                </div>
 
-                <div className="flex flex-col items-end">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    <CheckCircle2 className="w-3 h-3" />
-                    Verified
-                  </span>
-                  <span className="text-[10px] font-mono text-[#F5D5E0]/50 mt-1">
-                    {acc.verification_code}
-                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Verified
+                    </span>
+                    <span className="text-[10px] font-mono text-[#F5D5E0]/50 mt-1">
+                      {acc.verification_code}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* SUBMITTED CLIPS TABLE */}
@@ -245,92 +266,110 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#210635] text-[#F5D5E0]/70 uppercase tracking-wider border-b border-[#7B337E]/30">
-                <tr>
-                  <th className="py-3 px-4">Konten Klip</th>
-                  <th className="py-3 px-4">Campaign Episode</th>
-                  <th className="py-3 px-4">Views</th>
-                  <th className="py-3 px-4">Likes & Shares</th>
-                  <th className="py-3 px-4">Komisi Klip</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#7B337E]/20">
-                {submissions.map((sub) => (
-                  <tr key={sub.id} className="hover:bg-[#420D4B]/30 transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={sub.thumbnail_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=200'}
-                          alt="thumbnail"
-                          className="w-12 h-16 rounded-lg object-cover border border-[#7B337E]/40"
-                        />
-                        <div className="max-w-xs">
-                          <span className="font-semibold text-[#F5D5E0] block line-clamp-1">
-                            {sub.caption || 'Klip Komedi'}
+          {submissions.length === 0 ? (
+            <div className="p-10 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-3">
+              <Scissors className="w-8 h-8 text-[#6667AB] mx-auto -rotate-45" />
+              <p className="text-xs text-[#F5D5E0]/70 max-w-sm mx-auto">
+                {user
+                  ? 'Kamu belum memiliki klip yang disetor. Pilih episode dari katalog kampanye dan mulai setor link videomu!'
+                  : 'Silakan masuk untuk melihat daftar klip dan tracking komisi milikmu.'}
+              </p>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Pilih Episode Baru</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#210635] text-[#F5D5E0]/70 uppercase tracking-wider border-b border-[#7B337E]/30">
+                  <tr>
+                    <th className="py-3 px-4">Konten Klip</th>
+                    <th className="py-3 px-4">Campaign Episode</th>
+                    <th className="py-3 px-4">Views</th>
+                    <th className="py-3 px-4">Likes & Shares</th>
+                    <th className="py-3 px-4">Komisi Klip</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#7B337E]/20">
+                  {submissions.map((sub) => (
+                    <tr key={sub.id} className="hover:bg-[#420D4B]/30 transition-colors">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={sub.thumbnail_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=200'}
+                            alt="thumbnail"
+                            className="w-12 h-16 rounded-lg object-cover border border-[#7B337E]/40"
+                          />
+                          <div className="max-w-xs">
+                            <span className="font-semibold text-[#F5D5E0] block line-clamp-1">
+                              {sub.caption || 'Klip Komedi'}
+                            </span>
+                            <span className="text-[10px] text-[#F5D5E0]/50 capitalize">
+                              Platform: {sub.platform}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-4 font-medium text-[#F5D5E0]">
+                        {sub.campaign?.episode_guest || 'DiPanggil ke Ruangan'}
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <span className="font-bold text-[#F5D5E0] text-sm flex items-center gap-1">
+                          <Eye className="w-3.5 h-3.5 text-[#6667AB]" />
+                          {Number(sub.current_views || 0).toLocaleString('id-ID')}
+                        </span>
+                      </td>
+
+                      <td className="py-4 px-4 text-[#F5D5E0]/80">
+                        <div className="space-y-0.5">
+                          <span className="flex items-center gap-1 text-[11px]">
+                            <Heart className="w-3 h-3 text-rose-400" />
+                            {Number(sub.current_likes || 0).toLocaleString('id-ID')}
                           </span>
-                          <span className="text-[10px] text-[#F5D5E0]/50 capitalize">
-                            Platform: {sub.platform}
+                          <span className="flex items-center gap-1 text-[11px] text-[#F5D5E0]/60">
+                            <Share2 className="w-3 h-3 text-[#6667AB]" />
+                            {Number(sub.current_shares || 0).toLocaleString('id-ID')}
                           </span>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="py-4 px-4 font-medium text-[#F5D5E0]">
-                      {sub.campaign?.episode_guest || 'DiPanggil ke Ruangan'}
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <span className="font-bold text-[#F5D5E0] text-sm flex items-center gap-1">
-                        <Eye className="w-3.5 h-3.5 text-[#6667AB]" />
-                        {sub.current_views.toLocaleString('id-ID')}
-                      </span>
-                    </td>
-
-                    <td className="py-4 px-4 text-[#F5D5E0]/80">
-                      <div className="space-y-0.5">
-                        <span className="flex items-center gap-1 text-[11px]">
-                          <Heart className="w-3 h-3 text-rose-400" />
-                          {sub.current_likes.toLocaleString('id-ID')}
+                      <td className="py-4 px-4">
+                        <span className="font-extrabold text-emerald-400 text-sm">
+                          Rp {Number(sub.earnings || 0).toLocaleString('id-ID')}
                         </span>
-                        <span className="flex items-center gap-1 text-[11px] text-[#F5D5E0]/60">
-                          <Share2 className="w-3 h-3 text-[#6667AB]" />
-                          {sub.current_shares.toLocaleString('id-ID')}
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          {sub.status}
                         </span>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="py-4 px-4">
-                      <span className="font-extrabold text-emerald-400 text-sm">
-                        Rp {sub.earnings.toLocaleString('id-ID')}
-                      </span>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                        {sub.status}
-                      </span>
-                    </td>
-
-                    <td className="py-4 px-4 text-right">
-                      <a
-                        href={sub.post_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] text-[11px] font-semibold transition-colors"
-                      >
-                        <span>Lihat Video</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <td className="py-4 px-4 text-right">
+                        <a
+                          href={sub.post_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] text-[11px] font-semibold transition-colors"
+                        >
+                          <span>Lihat Video</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </main>
 

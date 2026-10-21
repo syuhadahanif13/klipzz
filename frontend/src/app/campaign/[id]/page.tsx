@@ -50,16 +50,19 @@ export default function CampaignDetailPage() {
   const campaignId = (params?.id as string) || 'c1111111-1111-1111-1111-111111111111';
   const { user } = useAuth();
 
-  // Find immediate mock match to guarantee 0ms instant display without blank screen
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(campaignId);
+
+  // Match local mock data by slug or id for instant 0ms render
   const initialMatch =
-    MOCK_CAMPAIGNS.find((c) => c.id === campaignId) ||
+    MOCK_CAMPAIGNS.find((c) => (isUuid ? c.id === campaignId : c.slug === campaignId)) ||
+    MOCK_CAMPAIGNS.find((c) => c.id === campaignId || c.slug === campaignId) ||
     MOCK_CAMPAIGNS[0];
 
   const [campaign, setCampaign] = useState<Campaign>(initialMatch);
-  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>(() => {
     return MOCK_SUBMISSIONS.filter(
-      (s) => s.campaign_id === campaignId || s.campaign_id === initialMatch.id
+      (s) => s.campaign_id === initialMatch.id || (initialMatch.slug && s.campaign_id === initialMatch.slug)
     );
   });
 
@@ -77,23 +80,27 @@ export default function CampaignDetailPage() {
     let isMounted = true;
 
     async function loadCampaignData() {
-      // 1. Immediately match local data if campaignId changed
+      // 1. Immediately match local data
       const localMatch =
-        MOCK_CAMPAIGNS.find((c) => c.id === campaignId) ||
+        MOCK_CAMPAIGNS.find((c) => (isUuid ? c.id === campaignId : c.slug === campaignId)) ||
+        MOCK_CAMPAIGNS.find((c) => c.id === campaignId || c.slug === campaignId) ||
         MOCK_CAMPAIGNS[0];
+
       if (isMounted) {
         setCampaign(localMatch);
       }
 
       try {
-        // 2. Fetch live campaign from Supabase
-        const { data: dbCampaign } = await supabase
-          .from('campaigns')
-          .select('*')
-          .eq('id', campaignId)
-          .maybeSingle();
+        // 2. Fetch live campaign from Supabase (by UUID or slug)
+        const query = supabase.from('campaigns').select('*');
+        const { data: dbCampaign, error: campErr } = isUuid
+          ? await query.eq('id', campaignId).maybeSingle()
+          : await query.eq('slug', campaignId).maybeSingle();
+
+        let resolvedCampaignId = localMatch.id;
 
         if (dbCampaign && isMounted) {
+          resolvedCampaignId = dbCampaign.id;
           setCampaign((prev) => ({
             ...prev,
             ...dbCampaign,
@@ -108,25 +115,31 @@ export default function CampaignDetailPage() {
           }));
         }
 
-        // 3. Fetch submissions for this campaign
-        const { data: dbSubs } = await supabase
-          .from('submissions')
-          .select('*')
-          .eq('campaign_id', campaignId);
+        // 3. Fetch submissions for this campaign using resolved UUID
+        if (resolvedCampaignId) {
+          const { data: dbSubs } = await supabase
+            .from('submissions')
+            .select('*')
+            .eq('campaign_id', resolvedCampaignId);
 
-        if (dbSubs && dbSubs.length > 0 && isMounted) {
-          setCampaignSubmissions(dbSubs as Submission[]);
+          if (dbSubs && dbSubs.length > 0 && isMounted) {
+            setCampaignSubmissions(dbSubs as Submission[]);
+          }
         }
 
-        // 4. Fetch user's social accounts if logged in
+        // 4. Fetch user's social accounts ONLY if user is logged in
         if (user) {
           const { data: userAccs } = await supabase
             .from('social_accounts')
             .select('*')
             .eq('user_id', user.id);
 
-          if (userAccs && userAccs.length > 0 && isMounted) {
+          if (userAccs && isMounted) {
             setSocialAccounts(userAccs as SocialAccount[]);
+          }
+        } else {
+          if (isMounted) {
+            setSocialAccounts([]);
           }
         }
       } catch (err) {
@@ -138,7 +151,7 @@ export default function CampaignDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [campaignId, user]);
+  }, [campaignId, isUuid, user]);
 
   // Safe fallback getters so UI never crashes or goes blank
   const targetCampaign = campaign || initialMatch;
@@ -508,10 +521,10 @@ export default function CampaignDetailPage() {
                       </div>
                       <div>
                         <span className="font-bold text-[#F5D5E0] block leading-snug">
-                          {sub.current_views.toLocaleString('id-ID')} Views
+                          {Number(sub.current_views || 0).toLocaleString('id-ID')} Views
                         </span>
                         <span className="text-[10px] text-emerald-400 font-semibold">
-                          Rp {sub.earnings.toLocaleString('id-ID')}
+                          Rp {Number(sub.earnings || 0).toLocaleString('id-ID')}
                         </span>
                       </div>
                     </div>
@@ -548,7 +561,7 @@ export default function CampaignDetailPage() {
         onSubmitSuccess={(newSub) => {
           setCampaignSubmissions((prev) => [newSub, ...prev]);
           setSubmitSuccessNotice(
-            `Klip berhasil disetor! Views awal: ${newSub.current_views.toLocaleString('id-ID')}, komisi terhitung Rp ${newSub.earnings.toLocaleString('id-ID')}.`
+            `Klip berhasil disetor! Views awal: ${Number(newSub.current_views || 0).toLocaleString('id-ID')}, komisi terhitung Rp ${Number(newSub.earnings || 0).toLocaleString('id-ID')}.`
           );
           setTimeout(() => setSubmitSuccessNotice(null), 8000);
         }}

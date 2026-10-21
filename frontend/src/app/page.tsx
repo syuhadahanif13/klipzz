@@ -36,7 +36,7 @@ import { Campaign, SocialAccount, Submission } from '../types';
 export default function HomePage() {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
-  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(MOCK_SOCIAL_ACCOUNTS);
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>(MOCK_SUBMISSIONS);
   const [viewsEstimate, setViewsEstimate] = useState<number>(50000);
 
@@ -68,6 +68,28 @@ export default function HomePage() {
     }
     fetchCampaigns();
   }, []);
+
+  // Fetch social accounts for logged-in user
+  useEffect(() => {
+    async function fetchUserAccounts() {
+      if (!user) {
+        setSocialAccounts([]);
+        return;
+      }
+      try {
+        const { data } = await supabase
+          .from('social_accounts')
+          .select('*')
+          .eq('user_id', user.id);
+        if (data) {
+          setSocialAccounts(data as SocialAccount[]);
+        }
+      } catch (err) {
+        console.warn('Failed to load user social accounts:', err);
+      }
+    }
+    fetchUserAccounts();
+  }, [user]);
 
   const handleAccountVerified = (account: SocialAccount) => {
     setSocialAccounts((prev) => [account, ...prev]);
@@ -397,7 +419,7 @@ export default function HomePage() {
                   {/* Actions */}
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <Link
-                      href={`/campaign/${camp.id}`}
+                      href={`/campaign/${camp.slug || camp.id}`}
                       className="py-2.5 px-3 rounded-xl text-center text-xs font-semibold bg-[#210635] hover:bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/40 transition-colors"
                     >
                       Creator Kit & Detail

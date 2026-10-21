@@ -54,6 +54,7 @@ export const MOCK_SOCIAL_ACCOUNTS: SocialAccount[] = [
 export const MOCK_CAMPAIGNS: Campaign[] = [
   {
     id: 'c1111111-1111-1111-1111-111111111111',
+    slug: 'abdur-mamat',
     brand_id: '11111111-1111-1111-1111-111111111111',
     title: 'GARA GARA ABDUR, MAMAT ALKATIRI UDAH GAMAU MAIN FILM LAGI!',
     description: 'Potong momen adu argumen kocak antara Abdur Arsyad dan Mamat Alkatiri saat diinterogasi Arif Brata & Dara Sarasvati. Fokus pada ekspresi panik Mamat dan satir pedas Abdur!',
@@ -85,6 +86,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c2222222-2222-2222-2222-222222222222',
+    slug: 'dodit-mulyanto',
     brand_id: '11111111-1111-1111-1111-111111111111',
     title: 'PERUBAHAN DODIT MULYANTO BIKIN LAURA MOANE BERTANYA-TANYA',
     description: 'Kekocakan Dodit Mulyanto menceritakan kehidupan rumah hutan dan kisah asmara bersama Laura Moane. Respon polos Laura dan reaksi Arif Brata sangat renyah untuk dipotong!',
@@ -115,6 +117,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c3333333-3333-3333-3333-333333333333',
+    slug: 'duo-bahlul',
     brand_id: '11111111-1111-1111-1111-111111111111',
     title: 'DUO BAHLUL TERNYATA SEORANG DUO YANG JARANG NONGKRONG BARENG',
     description: 'Sahil & Kamal (Duo Bahlul) membongkar rahasia dapur persahabatan mereka di hadapan Arif Brata & Dara Sarasvati. Chemistry kocak saat siaran ternyata beda 180 derajat di tongkrongan!',
@@ -144,6 +147,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
   },
   {
     id: 'c4444444-4444-4444-4444-444444444444',
+    slug: 'aldi-taher',
     brand_id: '11111111-1111-1111-1111-111111111111',
     title: 'ALDI TAHER CERITA MASTER SAIFUL DATANG DI WAKTU YANG TEPAT!',
     description: 'Kisah absurd nan inspiratif dari Aldi Taher yang bikin Arif Brata & Dara Sarasvati tepuk jidat berkali-kali. Komedi spontanitas tiada tanding!',

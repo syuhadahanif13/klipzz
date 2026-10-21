@@ -29,6 +29,7 @@ export interface SocialAccount {
 
 export interface Campaign {
   id: string;
+  slug?: string;
   brand_id?: string;
   title: string;
   description: string;

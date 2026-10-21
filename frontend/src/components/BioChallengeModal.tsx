@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Check, Copy, AlertCircle, RefreshCw, Sparkles, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
+import { X, Check, Copy, AlertCircle, RefreshCw, Sparkles, ExternalLink, ShieldAlert } from 'lucide-react';
 import { SocialAccount, SocialPlatform } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
@@ -47,12 +48,17 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
   };
 
   const handleVerify = async () => {
+    if (!user) {
+      setVerificationError('Silakan login terlebih dahulu untuk menyimpan akun.');
+      return;
+    }
+
     setIsVerifying(true);
     setVerificationError(null);
 
     try {
       const cleanHandle = handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`;
-      const userId = user?.id || '22222222-2222-2222-2222-222222222222';
+      const userId = user.id;
       let accId = `acc_${Date.now()}`;
 
       // Simulate Apify scraping delay
@@ -139,9 +145,42 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
           </p>
         </div>
 
-        {/* STEP 1: Pilih Platform & Input Handle */}
-        {step === 1 && (
-          <form onSubmit={handleStartChallenge} className="space-y-5">
+        {/* If user is not logged in */}
+        {!user ? (
+          <div className="text-center py-6 space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-[#420D4B] border border-[#7B337E]/60 flex items-center justify-center text-[#6667AB] shadow-moon-glow">
+              <ShieldAlert className="w-7 h-7 text-amber-400" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-[#F5D5E0]">
+                Silakan Masuk Terlebih Dahulu
+              </h3>
+              <p className="text-xs text-[#F5D5E0]/70 max-w-sm mx-auto leading-relaxed">
+                Untuk menghubungkan akun TikTok atau Instagram dan menyimpan verifikasi ke profil akunmu, silakan masuk ke akunmu terlebih dahulu.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-3">
+              <Link
+                href="/login"
+                onClick={resetModal}
+                className="py-3 px-6 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 text-center"
+              >
+                Masuk Akun
+              </Link>
+              <Link
+                href="/signup"
+                onClick={resetModal}
+                className="py-3 px-6 rounded-xl font-semibold text-xs bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/40 text-center"
+              >
+                Daftar Akun Baru
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* STEP 1: Pilih Platform & Input Handle */}
+            {step === 1 && (
+              <form onSubmit={handleStartChallenge} className="space-y-5">
             <div>
               <label className="block text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider mb-2">
                 Pilih Platform
@@ -301,6 +340,8 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
               Mulai Gunting Klip
             </button>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>
