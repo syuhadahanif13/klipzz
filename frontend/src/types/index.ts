@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'clipper';
+export type UserRole = 'admin' | 'clipper' | 'brand';
 export type SocialPlatform = 'tiktok' | 'instagram' | 'youtube_shorts';
 export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'flagged';

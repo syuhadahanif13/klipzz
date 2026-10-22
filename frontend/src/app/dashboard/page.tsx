@@ -17,67 +17,134 @@ import {
   Share2,
   Clock,
   Sparkles,
+  Flame,
+  UserCheck,
+  Layers,
 } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
 import { BottomNav } from '../../components/BottomNav';
 import { BioChallengeModal } from '../../components/BioChallengeModal';
 import { CreateCampaignModal } from '../../components/CreateCampaignModal';
+import { SubmitClipModal } from '../../components/SubmitClipModal';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
-import { SocialAccount, Submission } from '../../types';
+import { Campaign, SocialAccount, Submission } from '../../types';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Ambil data akun sosmed dan klip milik user yang login dari supabase
+  const isBrandOrAdmin = user?.role === 'admin' || user?.role === 'brand';
+
+  // Ambil data spesifik berdasarkan peran akun (Brand/Admin vs Clipper)
   useEffect(() => {
-    async function loadUserData() {
+    async function loadDashboardData() {
       if (!user) {
         setSocialAccounts([]);
         setSubmissions([]);
+        setCampaigns([]);
+        setIsLoading(false);
         return;
       }
+
+      setIsLoading(true);
       try {
-        // Tarik akun sosmed yang terhubung ke user id ini
-        const { data: accounts } = await supabase
-          .from('social_accounts')
-          .select('*')
-          .eq('user_id', user.id);
+        if (isBrandOrAdmin) {
+          // 1. Akun Brand / Admin: Ambil campaign yang dimiliki oleh brand ini
+          const { data: brandCamps } = await supabase
+            .from('campaigns')
+            .select('*')
+            .eq('brand_id', user.id)
+            .order('created_at', { ascending: false });
 
-        if (accounts) {
-          setSocialAccounts(accounts as SocialAccount[]);
-        }
+          if (brandCamps) {
+            setCampaigns(brandCamps as Campaign[]);
+          }
 
-        // Tarik semua klip yang disetor oleh user ini
-        const { data: userSubs } = await supabase
-          .from('submissions')
-          .select(`
-            *,
-            campaign:campaigns(id, title, channel_name, episode_guest, rate_per_1k_views)
-          `)
-          .eq('clipper_id', user.id);
+          // Ambil seluruh klip yang masuk ke campaign milik brand ini
+          const { data: brandSubs } = await supabase
+            .from('submissions')
+            .select(`
+              *,
+              campaign:campaigns(id, title, channel_name, episode_guest, rate_per_1k_views),
+              clipper:profiles!submissions_clipper_id_fkey(username, full_name, avatar_url)
+            `)
+            .order('created_at', { ascending: false });
 
-        if (userSubs) {
-          setSubmissions(userSubs as Submission[]);
+          if (brandSubs) {
+            setSubmissions(brandSubs as Submission[]);
+          }
+        } else {
+          // 2. Akun Clipper: Ambil akun sosmed terverifikasi milik clipper
+          const { data: accounts } = await supabase
+            .from('social_accounts')
+            .select('*')
+            .eq('user_id', user.id);
+
+          if (accounts) {
+            setSocialAccounts(accounts as SocialAccount[]);
+          }
+
+          // Ambil seluruh klip yang pernah disetor oleh clipper ini
+          const { data: userSubs } = await supabase
+            .from('submissions')
+            .select(`
+              *,
+              campaign:campaigns(id, title, channel_name, episode_guest, rate_per_1k_views)
+            `)
+            .eq('clipper_id', user.id)
+            .order('created_at', { ascending: false });
+
+          if (userSubs) {
+            setSubmissions(userSubs as Submission[]);
+          }
+
+          // Ambil seluruh campaign aktif yang disediakan oleh Brand agar clipper bisa langsung memilih campaign
+          const { data: activeCamps } = await supabase
+            .from('campaigns')
+            .select('*')
+            .neq('status', 'draft')
+            .order('created_at', { ascending: false });
+
+          if (activeCamps) {
+            setCampaigns(activeCamps as Campaign[]);
+          }
         }
       } catch (err) {
         console.warn('Error loading dashboard data:', err);
+      } finally {
+        setIsLoading(false);
       }
     }
 
-    loadUserData();
-  }, [user]);
+    loadDashboardData();
+  }, [user, isBrandOrAdmin]);
 
-  const totalViews = submissions.reduce((sum, s) => sum + s.current_views, 0);
-  const totalLikes = submissions.reduce((sum, s) => sum + s.current_likes, 0);
+  const totalViews = submissions.reduce((sum, s) => sum + (Number(s.current_views) || 0), 0);
+  const totalLikes = submissions.reduce((sum, s) => sum + (Number(s.current_likes) || 0), 0);
+  const totalRewardBudget = campaigns.reduce((sum, c) => sum + (Number(c.reward_pool) || 0), 0);
+  const totalRemainingBudget = campaigns.reduce((sum, c) => sum + (Number(c.remaining_pool) || 0), 0);
 
   const handleAccountVerified = (account: SocialAccount) => {
     setSocialAccounts((prev) => [account, ...prev]);
+  };
+
+  const handleOpenSubmit = (camp: Campaign) => {
+    setSelectedCampaign(camp);
+    setIsSubmitModalOpen(true);
+  };
+
+  const handleSubmitSuccess = (newSub: Submission) => {
+    setSubmissions((prev) => [newSub, ...prev]);
   };
 
   return (
@@ -91,269 +158,435 @@ export default function DashboardPage() {
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7B337E]/30 text-[#F5D5E0] border border-[#7B337E]/50 text-xs font-semibold mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>{isBrandOrAdmin ? 'Brand Management Portal' : 'Clipper Creator Studio'}</span>
+            </div>
             <h1 className="text-2xl sm:text-3xl font-black text-[#F5D5E0] flex items-center gap-2.5">
-              <Scissors className="w-6 h-6 text-[#7B337E] -rotate-45" />
-              Clipper Studio & Tracking Hub
+              {isBrandOrAdmin ? (
+                <>
+                  <Layers className="w-7 h-7 text-[#6667AB]" />
+                  <span>Portal Pengelola Kampanye</span>
+                </>
+              ) : (
+                <>
+                  <Scissors className="w-6 h-6 text-[#7B337E] -rotate-45" />
+                  <span>Clipper Studio & Tracking Hub</span>
+                </>
+              )}
             </h1>
             <p className="text-xs sm:text-sm text-[#F5D5E0]/70 mt-1">
-              Pantau performa views klip TikTok & Reels-mu yang disinkronkan langsung via Apify Scraper Engine.
+              {isBrandOrAdmin
+                ? 'Kelola alokasi reward pool kampanye dan pantau sebaran klip video resmi yang digunting oleh komunitas clipper.'
+                : 'Pantau performa views klip TikTok & Reels-mu yang disinkronkan langsung via Apify Scraper Engine.'}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsBioModalOpen(true)}
-              className="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/60 transition-colors flex items-center gap-1.5"
-            >
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Verifikasi Akun</span>
-            </button>
+            {isBrandOrAdmin ? (
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 text-center flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Buka Campaign Baru</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => setIsBioModalOpen(true)}
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/60 transition-colors flex items-center gap-1.5"
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Verifikasi Akun Sosmed</span>
+                </button>
 
-            <Link
-              href="/"
-              className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 text-center flex items-center justify-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Jelajahi Episode Baru</span>
-            </Link>
+                <a
+                  href="#campaigns-list"
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 text-center flex items-center justify-center gap-2"
+                >
+                  <Flame className="w-4 h-4 text-amber-400" />
+                  <span>Lihat Campaign Siap Gunting</span>
+                </a>
+              </>
+            )}
           </div>
         </div>
 
         {/* METRICS STATS CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Balance */}
-          <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#F5D5E0]/70">Saldo Dapat Ditarik</span>
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <Wallet className="w-4 h-4" />
+        {isBrandOrAdmin ? (
+          /* Brand Metrics */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+              <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Alokasi Reward Pool</span>
+              <div className="text-2xl font-black text-emerald-400">
+                Rp {totalRewardBudget.toLocaleString('id-ID')}
               </div>
+              <span className="text-[11px] text-[#F5D5E0]/60">Dari {campaigns.length} episode kampanye</span>
             </div>
-            <div className="text-2xl font-black text-emerald-400">
-              Rp {(user?.balance || 0).toLocaleString('id-ID')}
-            </div>
-            {/* Tombol tarik saldo di-disable dulu ya karena fiturnya masih disiapin */}
-            <button
-              disabled
-              title="Fitur penarikan saldo sedang dalam pengembangan"
-              className="text-[11px] font-bold text-[#F5D5E0] underline cursor-not-allowed opacity-50"
-            >
-              Tarik Saldo ke Rekening / E-Wallet → (Segera Hadir)
-            </button>
-          </div>
 
-          {/* Total Views */}
-          <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Views Klip</span>
-              <div className="w-8 h-8 rounded-lg bg-[#6667AB]/20 text-[#6667AB] flex items-center justify-center">
-                <Eye className="w-4 h-4" />
+            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+              <span className="text-xs font-semibold text-[#F5D5E0]/70">Sisa Budget Tersedia</span>
+              <div className="text-2xl font-black text-amber-400">
+                Rp {totalRemainingBudget.toLocaleString('id-ID')}
               </div>
+              <span className="text-[11px] text-amber-400/80">Siap diklaim oleh kreator</span>
             </div>
-            <div className="text-2xl font-black text-[#F5D5E0]">
-              {totalViews.toLocaleString('id-ID')}
-            </div>
-            <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> Bertumbuh tiap 15 menit
-            </span>
-          </div>
 
-          {/* Total Likes */}
-          <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Likes Klip</span>
-              <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
-                <Heart className="w-4 h-4" />
+            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+              <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Klip Masuk</span>
+              <div className="text-2xl font-black text-[#F5D5E0]">
+                {submissions.length} Klip
               </div>
+              <span className="text-[11px] text-[#F5D5E0]/60">Tersinkronisasi otomatis</span>
             </div>
-            <div className="text-2xl font-black text-[#F5D5E0]">
-              {totalLikes.toLocaleString('id-ID')}
-            </div>
-            <span className="text-[11px] text-[#F5D5E0]/60">Engagement organik verified</span>
-          </div>
 
-          {/* Active Submissions */}
-          <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#F5D5E0]/70">Klip Berjalan</span>
-              <div className="w-8 h-8 rounded-lg bg-[#7B337E]/30 text-[#F5D5E0] flex items-center justify-center">
-                <Scissors className="w-4 h-4 -rotate-45" />
+            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+              <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Views Didorong</span>
+              <div className="text-2xl font-black text-[#F5D5E0]">
+                {totalViews.toLocaleString('id-ID')}
               </div>
+              <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" /> Jangkauan viralitas
+              </span>
             </div>
-            <div className="text-2xl font-black text-[#F5D5E0]">
-              {submissions.length} Klip
-            </div>
-            <span className="text-[11px] text-[#F5D5E0]/60">Status: Approved & Tracking</span>
           </div>
-        </div>
-
-        {/* LINKED SOCIAL ACCOUNTS */}
-        <section className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-lg font-bold text-[#F5D5E0]">
-                Akun Sosial Media Terverifikasi
-              </h2>
-            </div>
-            <button
-              onClick={() => setIsBioModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/60 transition-all flex items-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Hubungkan Akun Baru</span>
-            </button>
-          </div>
-
-          {socialAccounts.length === 0 ? (
-            <div className="p-8 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-3">
-              <ShieldCheck className="w-8 h-8 text-[#6667AB] mx-auto" />
-              <p className="text-xs text-[#F5D5E0]/70 max-w-sm mx-auto">
-                {user
-                  ? 'Belum ada akun sosial media (TikTok / Instagram) yang terhubung. Hubungkan akunmu untuk melacak klip.'
-                  : 'Silakan masuk ke akunmu untuk melihat akun sosmed terverifikasi.'}
-              </p>
+        ) : (
+          /* Clipper Metrics */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#F5D5E0]/70">Saldo Dapat Ditarik</span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Wallet className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-emerald-400">
+                Rp {(user?.balance || 0).toLocaleString('id-ID')}
+              </div>
               <button
-                onClick={() => setIsBioModalOpen(true)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors"
+                disabled
+                title="Fitur penarikan saldo sedang dalam pengembangan"
+                className="text-[11px] font-bold text-[#F5D5E0] underline cursor-not-allowed opacity-50"
               >
-                Hubungkan Akun Baru
+                Tarik Saldo ke Rekening / E-Wallet → (Segera Hadir)
               </button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {socialAccounts.map((acc) => (
-                <div
-                  key={acc.id}
-                  className="p-4 rounded-xl bg-[#210635]/80 border border-[#7B337E]/40 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#420D4B] border border-[#6667AB]/40 flex items-center justify-center font-bold uppercase text-xs text-[#F5D5E0]">
-                      {acc.platform === 'tiktok' ? 'TT' : 'IG'}
-                    </div>
-                    <div>
-                      <span className="font-bold text-sm text-[#F5D5E0] block leading-snug">
-                        {acc.handle}
-                      </span>
-                      <span className="text-[11px] text-[#F5D5E0]/60">
-                        {Number(acc.follower_count || 0).toLocaleString('id-ID')} followers
-                      </span>
-                    </div>
-                  </div>
 
-                  <div className="flex flex-col items-end">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      <CheckCircle2 className="w-3 h-3" />
-                      Verified
-                    </span>
-                    <span className="text-[10px] font-mono text-[#F5D5E0]/50 mt-1">
-                      {acc.verification_code}
-                    </span>
-                  </div>
+            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Views Klip</span>
+                <div className="w-8 h-8 rounded-lg bg-[#6667AB]/20 text-[#6667AB] flex items-center justify-center">
+                  <Eye className="w-4 h-4" />
                 </div>
-              ))}
+              </div>
+              <div className="text-2xl font-black text-[#F5D5E0]">
+                {totalViews.toLocaleString('id-ID')}
+              </div>
+              <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" /> Bertumbuh tiap 15 menit
+              </span>
+            </div>
+
+            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Likes Klip</span>
+                <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                  <Heart className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-[#F5D5E0]">
+                {totalLikes.toLocaleString('id-ID')}
+              </div>
+              <span className="text-[11px] text-[#F5D5E0]/60">Engagement organik verified</span>
+            </div>
+
+            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#F5D5E0]/70">Klip Berjalan</span>
+                <div className="w-8 h-8 rounded-lg bg-[#7B337E]/30 text-[#F5D5E0] flex items-center justify-center">
+                  <Scissors className="w-4 h-4 -rotate-45" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-[#F5D5E0]">
+                {submissions.length} Klip
+              </div>
+              <span className="text-[11px] text-[#F5D5E0]/60">Status: Approved & Tracking</span>
+            </div>
+          </div>
+        )}
+
+        {/* SECTION AKUN SOSIAL MEDIA (Khusus Clipper) */}
+        {!isBrandOrAdmin && (
+          <section className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <h2 className="text-lg font-bold text-[#F5D5E0]">
+                  Akun Sosial Media Terverifikasi
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsBioModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/60 transition-all flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Hubungkan Akun Baru</span>
+              </button>
+            </div>
+
+            {socialAccounts.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-3">
+                <ShieldCheck className="w-8 h-8 text-[#6667AB] mx-auto" />
+                <p className="text-xs text-[#F5D5E0]/70 max-w-sm mx-auto">
+                  Belum ada akun sosial media (TikTok / Instagram) yang terhubung. Hubungkan akunmu untuk melacak klip dan mendapatkan komisi.
+                </p>
+                <button
+                  onClick={() => setIsBioModalOpen(true)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors"
+                >
+                  Hubungkan Akun Baru
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {socialAccounts.map((acc) => (
+                  <div
+                    key={acc.id}
+                    className="p-4 rounded-xl bg-[#210635]/80 border border-[#7B337E]/40 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#420D4B] border border-[#6667AB]/40 flex items-center justify-center font-bold uppercase text-xs text-[#F5D5E0]">
+                        {acc.platform === 'tiktok' ? 'TT' : 'IG'}
+                      </div>
+                      <div>
+                        <span className="font-bold text-sm text-[#F5D5E0] block leading-snug">
+                          {acc.handle}
+                        </span>
+                        <span className="text-[11px] text-[#F5D5E0]/60">
+                          {Number(acc.follower_count || 0).toLocaleString('id-ID')} followers
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Verified
+                      </span>
+                      <span className="text-[10px] font-mono text-[#F5D5E0]/50 mt-1">
+                        {acc.verification_code}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* SECTION CAMPAIGN (Daftar Campaign Aktif Siap Digunting untuk Clipper / Kelola Campaign untuk Brand) */}
+        <section id="campaigns-list" className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-amber-400" />
+              <div>
+                <h2 className="text-lg font-bold text-[#F5D5E0]">
+                  {isBrandOrAdmin ? 'Daftar Kampanye Resmi Milik Brand' : 'Campaign Aktif Siap Digunting'}
+                </h2>
+                <p className="text-xs text-[#F5D5E0]/60">
+                  {isBrandOrAdmin
+                    ? 'Kelola episode kampanye resmi dan alokasi reward pool brand Anda.'
+                    : 'Pilih episode podcast @DipanggilKeRuangan, ambil footage video, dan setor klip untuk raih komisi.'}
+                </p>
+              </div>
+            </div>
+
+            {isBrandOrAdmin && (
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/60 transition-all flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Campaign</span>
+              </button>
+            )}
+          </div>
+
+          {campaigns.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-2">
+              <p className="text-xs text-[#F5D5E0]/70">
+                {isBrandOrAdmin
+                  ? 'Belum ada campaign yang dibuat. Klik tombol di atas untuk membuka campaign baru.'
+                  : 'Belum ada campaign aktif yang tersedia saat ini.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {campaigns.map((camp) => {
+                const pool = Number(camp.reward_pool) || 0;
+                const rem = Number(camp.remaining_pool) || 0;
+                const progress = pool > 0 ? Math.min(100, Math.round(((pool - rem) / pool) * 100)) : 0;
+
+                return (
+                  <div
+                    key={camp.id}
+                    className="p-4 rounded-xl bg-[#210635]/80 border border-[#7B337E]/40 hover:border-[#6667AB] transition-all flex flex-col justify-between space-y-3 group"
+                  >
+                    <div className="space-y-2">
+                      <div className="relative aspect-video rounded-lg overflow-hidden border border-[#7B337E]/30">
+                        <img
+                          src={camp.thumbnail_url || `https://img.youtube.com/vi/${camp.youtube_video_id}/hqdefault.jpg`}
+                          alt={camp.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-[#210635]/90 text-[10px] font-mono text-emerald-400 font-bold">
+                          Rp {Number(camp.rate_per_1k_views || 0).toLocaleString('id-ID')}/1k
+                        </span>
+                      </div>
+
+                      <h3 className="font-bold text-xs text-[#F5D5E0] line-clamp-2 leading-snug">
+                        {camp.title}
+                      </h3>
+
+                      <span className="text-[11px] text-[#6667AB] block font-medium truncate">
+                        Guest: {camp.episode_guest || 'Spesial Guest'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-[#7B337E]/30">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-[#F5D5E0]/60">Sisa Pool:</span>
+                        <span className="font-bold text-amber-300">
+                          Rp {rem.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+
+                      <div className="w-full h-1.5 rounded-full bg-[#210635] overflow-hidden border border-[#7B337E]/30">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] rounded-full"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <Link
+                          href={`/campaign/${camp.slug || camp.id}`}
+                          className="py-2 px-2.5 rounded-lg text-center text-[11px] font-semibold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors flex items-center justify-center truncate"
+                        >
+                          Creator Kit
+                        </Link>
+
+                        {!isBrandOrAdmin ? (
+                          <button
+                            onClick={() => handleOpenSubmit(camp)}
+                            className="py-2 px-2.5 rounded-lg text-center text-[11px] font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-sm hover:opacity-95 transition-opacity flex items-center justify-center gap-1"
+                          >
+                            <Scissors className="w-3 h-3 -rotate-45" />
+                            <span>Setor</span>
+                          </button>
+                        ) : (
+                          <Link
+                            href={`/campaign/${camp.slug || camp.id}`}
+                            className="py-2 px-2.5 rounded-lg text-center text-[11px] font-bold bg-[#6667AB] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors flex items-center justify-center"
+                          >
+                            Kelola
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
 
-        {/* SUBMITTED CLIPS TABLE */}
+        {/* SECTION RIWAYAT KLIP */}
         <section className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-[#F5D5E0]">
-                Daftar Klip & Penghasilan Real-Time
+                {isBrandOrAdmin ? 'Setoran Klip Masuk dari Seluruh Komunitas' : 'Riwayat Setoran Klip Video Kamu'}
               </h2>
-              <p className="text-xs text-[#F5D5E0]/70">
-                Pencatatan metrik views & payout dihitung dari verifikasi link postingan oleh Apify Engine.
+              <p className="text-xs text-[#F5D5E0]/60">
+                {isBrandOrAdmin
+                  ? 'Klip video yang diposting oleh para clipper di media sosial untuk mempromosikan episode podcast Anda.'
+                  : 'Daftar video yang telah kamu setor beserta update views dan komisi terkini.'}
               </p>
             </div>
           </div>
 
           {submissions.length === 0 ? (
-            <div className="p-10 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-3">
+            <div className="p-8 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-3">
               <Scissors className="w-8 h-8 text-[#6667AB] mx-auto -rotate-45" />
               <p className="text-xs text-[#F5D5E0]/70 max-w-sm mx-auto">
-                {user
-                  ? 'Kamu belum memiliki klip yang disetor. Pilih episode dari katalog kampanye dan mulai setor link videomu!'
-                  : 'Silakan masuk untuk melihat daftar klip dan tracking komisi milikmu.'}
+                {isBrandOrAdmin
+                  ? 'Belum ada clipper yang menyetor klip ke kampanye Anda saat ini.'
+                  : 'Kamu belum menyetor video klip apapun. Pilih episode di atas untuk mulai memotong dan menyetor klip.'}
               </p>
-              <Link
-                href="/"
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Pilih Episode Baru</span>
-              </Link>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#210635] text-[#F5D5E0]/70 uppercase tracking-wider border-b border-[#7B337E]/30">
-                  <tr>
-                    <th className="py-3 px-4">Konten Klip</th>
-                    <th className="py-3 px-4">Campaign Episode</th>
-                    <th className="py-3 px-4">Views</th>
-                    <th className="py-3 px-4">Likes & Shares</th>
-                    <th className="py-3 px-4">Komisi Klip</th>
+                <thead>
+                  <tr className="border-b border-[#7B337E]/40 text-[#F5D5E0]/60 uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-4">Video / Episode</th>
+                    {isBrandOrAdmin && <th className="py-3 px-4">Clipper</th>}
+                    <th className="py-3 px-4">Platform</th>
+                    <th className="py-3 px-4">Views Terkini</th>
+                    <th className="py-3 px-4">Likes</th>
+                    <th className="py-3 px-4">Komisi Diperoleh</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#7B337E]/20">
-                  {submissions.map((sub) => (
+                  {submissions.map((sub: any) => (
                     <tr key={sub.id} className="hover:bg-[#420D4B]/30 transition-colors">
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 font-medium text-[#F5D5E0]">
                         <div className="flex items-center gap-3">
                           <img
                             src={sub.thumbnail_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=200'}
                             alt="thumbnail"
-                            className="w-12 h-16 rounded-lg object-cover border border-[#7B337E]/40"
+                            className="w-12 h-12 rounded-lg object-cover border border-[#7B337E]/40 shrink-0"
                           />
                           <div className="max-w-xs">
-                            <span className="font-semibold text-[#F5D5E0] block line-clamp-1">
-                              {sub.caption || 'Klip Komedi'}
+                            <span className="font-bold block truncate">
+                              {sub.campaign?.title || 'Episode Kampanye'}
                             </span>
-                            <span className="text-[10px] text-[#F5D5E0]/50 capitalize">
-                              Platform: {sub.platform}
+                            <span className="text-[11px] text-[#6667AB] block truncate">
+                              Guest: {sub.campaign?.episode_guest || 'Spesial Guest'}
                             </span>
                           </div>
                         </div>
                       </td>
 
-                      <td className="py-4 px-4 font-medium text-[#F5D5E0]">
-                        {sub.campaign?.episode_guest || 'DiPanggil ke Ruangan'}
+                      {isBrandOrAdmin && (
+                        <td className="py-4 px-4 font-semibold text-[#F5D5E0]">
+                          @{sub.clipper?.username || 'clipper'}
+                        </td>
+                      )}
+
+                      <td className="py-4 px-4 font-bold uppercase text-[11px] text-[#F5D5E0]/80">
+                        {sub.platform}
+                      </td>
+
+                      <td className="py-4 px-4 font-mono font-bold text-emerald-400">
+                        {Number(sub.current_views || 0).toLocaleString('id-ID')}
+                      </td>
+
+                      <td className="py-4 px-4 font-mono text-[#F5D5E0]/70">
+                        {Number(sub.current_likes || 0).toLocaleString('id-ID')}
+                      </td>
+
+                      <td className="py-4 px-4 font-mono font-bold text-emerald-300">
+                        Rp {Number(sub.earnings || 0).toLocaleString('id-ID')}
                       </td>
 
                       <td className="py-4 px-4">
-                        <span className="font-bold text-[#F5D5E0] text-sm flex items-center gap-1">
-                          <Eye className="w-3.5 h-3.5 text-[#6667AB]" />
-                          {Number(sub.current_views || 0).toLocaleString('id-ID')}
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-4 text-[#F5D5E0]/80">
-                        <div className="space-y-0.5">
-                          <span className="flex items-center gap-1 text-[11px]">
-                            <Heart className="w-3 h-3 text-rose-400" />
-                            {Number(sub.current_likes || 0).toLocaleString('id-ID')}
-                          </span>
-                          <span className="flex items-center gap-1 text-[11px] text-[#F5D5E0]/60">
-                            <Share2 className="w-3 h-3 text-[#6667AB]" />
-                            {Number(sub.current_shares || 0).toLocaleString('id-ID')}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <span className="font-extrabold text-emerald-400 text-sm">
-                          Rp {Number(sub.earnings || 0).toLocaleString('id-ID')}
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        {/* Atur warna badge status klip: approved hijau, pending kuning, rejected merah */}
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                          className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
                             sub.status === 'approved'
                               ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                               : sub.status === 'pending'
@@ -401,8 +634,20 @@ export default function DashboardPage() {
         }}
       />
 
+      <SubmitClipModal
+        isOpen={isSubmitModalOpen}
+        onClose={() => setIsSubmitModalOpen(false)}
+        campaign={selectedCampaign}
+        socialAccounts={socialAccounts}
+        onSubmitSuccess={handleSubmitSuccess}
+        onOpenBioChallenge={() => setIsBioModalOpen(true)}
+      />
+
       {/* MOBILE BOTTOM APP NAVIGATION */}
       <BottomNav
+        onOpenSubmit={() => {
+          if (campaigns.length > 0) handleOpenSubmit(campaigns[0]);
+        }}
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
     </div>

@@ -62,7 +62,7 @@ export default function HomePage() {
           .neq('status', 'draft')
           .order('created_at', { ascending: false });
 
-        if (dbCampaigns) {
+        if (dbCampaigns && dbCampaigns.length > 0) {
           setCampaigns(dbCampaigns as Campaign[]);
         }
 
@@ -485,9 +485,6 @@ export default function HomePage() {
                     <div className="grid grid-cols-2 gap-2 pt-2">
                       <Link
                         href={`/campaign/${camp.slug || camp.id}`}
-                        onClick={() => {
-                          router.push(`/campaign/${camp.slug || camp.id}`);
-                        }}
                         className="py-2.5 px-3 rounded-xl text-center text-xs font-semibold bg-[#210635] hover:bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/40 transition-all active:scale-95 flex items-center justify-center cursor-pointer shadow-sm"
                       >
                         Creator Kit & Detail
