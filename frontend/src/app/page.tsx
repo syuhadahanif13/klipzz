@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Scissors,
   Flame,
@@ -27,11 +28,13 @@ import { CreateCampaignModal } from '../components/CreateCampaignModal';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { Campaign, SocialAccount, Submission } from '../types';
+import { MOCK_CAMPAIGNS } from '../data/mockData';
 
 export default function HomePage() {
+  const router = useRouter();
   const { user } = useAuth();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState<boolean>(true);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState<boolean>(false);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [totalPlatformViews, setTotalPlatformViews] = useState<number>(0);
@@ -389,7 +392,10 @@ export default function HomePage() {
                     className="glass-card glass-panel-hover rounded-2xl p-5 border border-[#7B337E]/40 flex flex-col justify-between space-y-4"
                   >
                     {/* Top Thumbnail & Guest Badge */}
-                    <div className="relative rounded-xl overflow-hidden aspect-video bg-[#210635]">
+                    <Link
+                      href={`/campaign/${camp.slug || camp.id}`}
+                      className="relative rounded-xl overflow-hidden aspect-video bg-[#210635] block group cursor-pointer"
+                    >
                       <img
                         src={camp.thumbnail_url}
                         alt={camp.title}
@@ -402,23 +408,20 @@ export default function HomePage() {
                         {camp.episode_guest}
                       </div>
 
-                      {/* YouTube Watch link */}
-                      <a
-                        href={camp.source_youtube_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute bottom-3 right-3 p-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md text-[#F5D5E0] border border-white/20 transition-all flex items-center gap-1.5 text-xs font-medium"
-                      >
+                      {/* Watch Badge */}
+                      <div className="absolute bottom-3 right-3 p-2 rounded-xl bg-black/60 group-hover:bg-black/80 backdrop-blur-md text-[#F5D5E0] border border-white/20 transition-all flex items-center gap-1.5 text-xs font-medium">
                         <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>Tonton di YouTube</span>
-                      </a>
-                    </div>
+                        <span>Lihat Detail</span>
+                      </div>
+                    </Link>
 
                     {/* Campaign Title & Description */}
                     <div className="space-y-2">
-                      <h3 className="text-base sm:text-lg font-bold text-[#F5D5E0] line-clamp-2 hover:text-[#6667AB] transition-colors">
-                        {camp.title}
-                      </h3>
+                      <Link href={`/campaign/${camp.slug || camp.id}`} className="block group">
+                        <h3 className="text-base sm:text-lg font-bold text-[#F5D5E0] line-clamp-2 group-hover:text-[#6667AB] transition-colors">
+                          {camp.title}
+                        </h3>
+                      </Link>
                       <p className="text-xs text-[#F5D5E0]/70 line-clamp-2">
                         {camp.description}
                       </p>
@@ -465,7 +468,10 @@ export default function HomePage() {
                     <div className="grid grid-cols-2 gap-2 pt-2">
                       <Link
                         href={`/campaign/${camp.slug || camp.id}`}
-                        className="py-2.5 px-3 rounded-xl text-center text-xs font-semibold bg-[#210635] hover:bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/40 transition-colors"
+                        onClick={() => {
+                          router.push(`/campaign/${camp.slug || camp.id}`);
+                        }}
+                        className="py-2.5 px-3 rounded-xl text-center text-xs font-semibold bg-[#210635] hover:bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/40 transition-all active:scale-95 flex items-center justify-center cursor-pointer shadow-sm"
                       >
                         Creator Kit & Detail
                       </Link>

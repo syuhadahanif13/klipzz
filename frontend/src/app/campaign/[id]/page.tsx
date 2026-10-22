@@ -32,6 +32,7 @@ import { CreateCampaignModal } from '../../../components/CreateCampaignModal';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
 import { Campaign, SocialAccount, Submission } from '../../../types';
+import { MOCK_CAMPAIGNS } from '../../../data/mockData';
 
 function extractYoutubeId(url?: string, defaultId?: string): string {
   if (defaultId && defaultId.length === 11) return defaultId;
@@ -46,11 +47,12 @@ export default function CampaignDetailPage() {
   const campaignId = (params?.id as string) || '';
   const { user } = useAuth();
 
-  // Cek apakah parameter berupa UUID atau slug (misal abdur-mamat)
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(campaignId);
+  // Cari fallback campaign lokal agar halaman tidak pernah blank saat dimuat
+  const fallbackCamp =
+    MOCK_CAMPAIGNS.find((c) => c.slug === campaignId || c.id === campaignId) || null;
 
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [campaign, setCampaign] = useState<Campaign | null>(fallbackCamp);
+  const [isLoading, setIsLoading] = useState<boolean>(!fallbackCamp);
   const [notFound, setNotFound] = useState<boolean>(false);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>([]);
@@ -65,21 +67,42 @@ export default function CampaignDetailPage() {
   // Menit video aktif yang diklik
   const [activeTimestamp, setActiveTimestamp] = useState<number | null>(null);
 
+  // Ambil data detail campaign dari Supabase
   useEffect(() => {
     let isMounted = true;
 
     async function loadRealCampaignData() {
-      setIsLoading(true);
-      setNotFound(false);
-
       try {
-        // Ambil data campaign langsung dari Supabase (bisa lewat slug atau UUID)
-        const query = supabase.from('campaigns').select('*');
-        const { data: dbCampaign, error: campErr } = isUuid
-          ? await query.eq('id', campaignId).maybeSingle()
-          : await query.eq('slug', campaignId).maybeSingle();
+        let foundCampaign: Campaign | null = null;
 
-        if (campErr || !dbCampaign) {
+        // 1. Coba cari lewat kolom slug
+        const { data: bySlug } = await supabase
+          .from('campaigns')
+          .select('*')
+          .eq('slug', campaignId)
+          .maybeSingle();
+
+        if (bySlug) {
+          foundCampaign = bySlug as Campaign;
+        } else {
+          // 2. Jika tidak ada lewat slug, cari lewat id
+          const { data: byId } = await supabase
+            .from('campaigns')
+            .select('*')
+            .eq('id', campaignId)
+            .maybeSingle();
+
+          if (byId) {
+            foundCampaign = byId as Campaign;
+          }
+        }
+
+        // 3. Fallback ke data lokal jika koneksi Supabase di self-hosted lambat / offline
+        if (!foundCampaign && fallbackCamp) {
+          foundCampaign = fallbackCamp;
+        }
+
+        if (!foundCampaign) {
           if (isMounted) {
             setNotFound(true);
             setIsLoading(false);
@@ -88,40 +111,32 @@ export default function CampaignDetailPage() {
         }
 
         if (isMounted) {
-          setCampaign(dbCampaign as Campaign);
+          setCampaign(foundCampaign);
+          setNotFound(false);
+          setIsLoading(false);
         }
 
         // Ambil klip yang sudah disetor khusus untuk campaign ini
         const { data: dbSubs } = await supabase
           .from('submissions')
           .select('*')
-          .eq('campaign_id', dbCampaign.id)
+          .eq('campaign_id', foundCampaign.id)
           .order('created_at', { ascending: false });
 
         if (dbSubs && isMounted) {
           setCampaignSubmissions(dbSubs as Submission[]);
         }
-
-        // Akun sosmed hanya diambil kalau user sudah login
-        if (user) {
-          const { data: userAccs } = await supabase
-            .from('social_accounts')
-            .select('*')
-            .eq('user_id', user.id);
-
-          if (userAccs && isMounted) {
-            setSocialAccounts(userAccs as SocialAccount[]);
-          }
-        } else {
-          if (isMounted) {
-            setSocialAccounts([]);
-          }
-        }
       } catch (err) {
-        console.error('Error fetching campaign from Supabase:', err);
-        if (isMounted) setNotFound(true);
-      } finally {
-        if (isMounted) setIsLoading(false);
+        console.error('Error fetching campaign detail:', err);
+        if (isMounted) {
+          if (fallbackCamp) {
+            setCampaign(fallbackCamp);
+            setNotFound(false);
+          } else {
+            setNotFound(true);
+          }
+          setIsLoading(false);
+        }
       }
     }
 
@@ -131,7 +146,38 @@ export default function CampaignDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [campaignId, isUuid, user]);
+  }, [campaignId]);
+
+  // Ambil akun sosmed milik user yang sedang login secara terpisah
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchUserAccounts() {
+      if (!user) {
+        if (isMounted) setSocialAccounts([]);
+        return;
+      }
+
+      try {
+        const { data: userAccs } = await supabase
+          .from('social_accounts')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (userAccs && isMounted) {
+          setSocialAccounts(userAccs as SocialAccount[]);
+        }
+      } catch (err) {
+        console.error('Error fetching user accounts in campaign detail:', err);
+      }
+    }
+
+    fetchUserAccounts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   if (isLoading) {
     return (
