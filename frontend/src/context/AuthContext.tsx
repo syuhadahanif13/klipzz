@@ -257,7 +257,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        return { success: false, error: error.message };
+        let msg = error.message;
+        const lowerMsg = msg.toLowerCase();
+        if (lowerMsg.includes('invalid') && lowerMsg.includes('email')) {
+          msg = 'Format email tidak valid atau domain email tidak didukung. Gunakan alamat email aktif.';
+        } else if (lowerMsg.includes('rate limit')) {
+          msg = 'Terlalu banyak permintaan pendaftaran. Mohon tunggu 1 menit lalu coba lagi.';
+        } else if (lowerMsg.includes('already registered')) {
+          msg = 'Email ini sudah terdaftar. Silakan masuk langsung dengan akun Anda.';
+        } else if (lowerMsg.includes('password') && lowerMsg.includes('least')) {
+          msg = 'Kata sandi minimal harus 6 karakter.';
+        } else if (lowerMsg.includes('database error saving new user')) {
+          msg = 'Sistem database sedang sibuk. Silakan coba kembali dalam beberapa detik.';
+        }
+        return { success: false, error: msg };
       }
 
       if (data.user) {
