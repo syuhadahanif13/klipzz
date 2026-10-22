@@ -206,11 +206,11 @@ WHEN (NEW.status = 'approved' AND NEW.current_views > OLD.current_views)
 EXECUTE FUNCTION public.calculate_submission_earnings();
 
 -- 10. ROW LEVEL SECURITY (RLS) POLICIES
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.social_accounts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.earnings_ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.social_accounts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.campaigns DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.submissions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.earnings_ledger DISABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;

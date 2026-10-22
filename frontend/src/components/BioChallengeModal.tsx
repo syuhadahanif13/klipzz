@@ -29,35 +29,48 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
 
   const handleStartChallenge = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!handle.trim() || !user) return;
+    if (!handle.trim()) {
+      setVerificationError('Harap masukkan username atau handle sosmed kamu terlebih dahulu.');
+      return;
+    }
+    if (!user) {
+      setVerificationError('Silakan masuk ke akun terlebih dahulu.');
+      return;
+    }
 
     setIsVerifying(true);
     setVerificationError(null);
 
-    const cleanHandle = handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`;
+    const cleanHandle = `@${handle.trim().replace(/^@+/, '')}`;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
 
     try {
-      const resp = await fetch(`${apiUrl}/social/challenge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          platform,
-          handle: cleanHandle,
-        }),
-      });
+      let challengeId = '';
+      let code = '';
 
-      if (resp.ok) {
-        const data = await resp.json();
-        setChallengeAccountId(data.challenge.id);
-        setGeneratedCode(data.challenge.verificationCode);
-        setStep(2);
-      } else {
-        // Kalau endpoint backend lagi gak bisa dijangkau, simpan langsung ke supabase
+      try {
+        const resp = await fetch(`${apiUrl}/social/challenge`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            platform,
+            handle: cleanHandle,
+          }),
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          challengeId = data.challenge?.id;
+          code = data.challenge?.verificationCode;
+        } else {
+          throw new Error('Backend challenge failed');
+        }
+      } catch (backendErr) {
+        // Fallback langsung simpan ke database Supabase
         const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-        let code = 'KLIPZZ-';
-        for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+        let genCode = 'KLIPZZ-';
+        for (let i = 0; i < 4; i++) genCode += chars.charAt(Math.floor(Math.random() * chars.length));
 
         const { data: dbAcc, error: dbErr } = await supabase
           .from('social_accounts')
@@ -66,7 +79,7 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
               user_id: user.id,
               platform,
               handle: cleanHandle,
-              verification_code: code,
+              verification_code: genCode,
               verification_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
               is_verified: false,
             },
@@ -76,9 +89,16 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
           .single();
 
         if (dbErr) throw dbErr;
-        setChallengeAccountId(dbAcc.id);
+        challengeId = dbAcc.id;
+        code = genCode;
+      }
+
+      if (challengeId && code) {
+        setChallengeAccountId(challengeId);
         setGeneratedCode(code);
         setStep(2);
+      } else {
+        throw new Error('Gagal membuat kode verifikasi.');
       }
     } catch (err: any) {
       setVerificationError(err.message || 'Gagal memulai verifikasi.');
@@ -274,11 +294,26 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
               />
             </div>
 
+            {verificationError && (
+              <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{verificationError}</span>
+              </div>
+            )}
+
             <button
               type="submit"
-              className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity"
+              disabled={isVerifying}
+              className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Lanjutkan & Dapatkan Bio Code
+              {isVerifying ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Menyiapkan Bio Code...</span>
+                </>
+              ) : (
+                <span>Lanjutkan & Dapatkan Bio Code</span>
+              )}
             </button>
           </form>
         )}
