@@ -46,6 +46,7 @@ export default function CampaignDetailPage() {
   const campaignId = (params?.id as string) || '';
   const { user } = useAuth();
 
+  // Cek apakah parameter berupa UUID atau slug (misal abdur-mamat)
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(campaignId);
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -54,14 +55,14 @@ export default function CampaignDetailPage() {
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>([]);
 
-  // Modals
+  // State modal aksi
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [copiedTags, setCopiedTags] = useState(false);
   const [submitSuccessNotice, setSubmitSuccessNotice] = useState<string | null>(null);
 
-  // Active video timestamp state
+  // Menit video aktif yang diklik
   const [activeTimestamp, setActiveTimestamp] = useState<number | null>(null);
 
   useEffect(() => {
@@ -72,7 +73,7 @@ export default function CampaignDetailPage() {
       setNotFound(false);
 
       try {
-        // Fetch live campaign from Supabase (by UUID or slug)
+        // Ambil data campaign langsung dari Supabase (bisa lewat slug atau UUID)
         const query = supabase.from('campaigns').select('*');
         const { data: dbCampaign, error: campErr } = isUuid
           ? await query.eq('id', campaignId).maybeSingle()
@@ -90,7 +91,7 @@ export default function CampaignDetailPage() {
           setCampaign(dbCampaign as Campaign);
         }
 
-        // Fetch real submissions for this campaign from Supabase
+        // Ambil klip yang sudah disetor khusus untuk campaign ini
         const { data: dbSubs } = await supabase
           .from('submissions')
           .select('*')
@@ -101,7 +102,7 @@ export default function CampaignDetailPage() {
           setCampaignSubmissions(dbSubs as Submission[]);
         }
 
-        // Fetch user's social accounts ONLY if user is logged in
+        // Akun sosmed hanya diambil kalau user sudah login
         if (user) {
           const { data: userAccs } = await supabase
             .from('social_accounts')

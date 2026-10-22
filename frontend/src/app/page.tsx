@@ -38,21 +38,21 @@ export default function HomePage() {
   const [totalClippersCount, setTotalClippersCount] = useState<number>(0);
   const [viewsEstimate, setViewsEstimate] = useState<number>(50000);
 
-  // Modal states
+  // State untuk modal
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
-  // Search & Filter
+  // Pencarian campaign
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Load live campaigns & metrics from Supabase
+  // Ambil campaign aktif dan metrik platform langsung dari supabase
   useEffect(() => {
     async function fetchLivePlatformData() {
       setIsLoadingCampaigns(true);
       try {
-        // 1. Fetch live active campaigns
+        // Ambil semua campaign yang aktif (bukan draft)
         const { data: dbCampaigns, error: campErr } = await supabase
           .from('campaigns')
           .select('*')
@@ -63,7 +63,7 @@ export default function HomePage() {
           setCampaigns(dbCampaigns as Campaign[]);
         }
 
-        // 2. Fetch live submissions metrics
+        // Ambil data views dan komisi klip riil dari db
         const { data: dbSubs } = await supabase
           .from('submissions')
           .select('id, current_views, earnings, status');
@@ -74,7 +74,7 @@ export default function HomePage() {
           setTotalPlatformViews(sumViews);
         }
 
-        // 3. Fetch total registered clippers count
+        // Hitung total clipper yang terdaftar
         const { count: clippersCount } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true })
@@ -92,7 +92,7 @@ export default function HomePage() {
     fetchLivePlatformData();
   }, []);
 
-  // Fetch social accounts for logged-in user
+  // Ambil akun sosmed terverifikasi milik user yang sedang login
   useEffect(() => {
     async function fetchUserAccounts() {
       if (!user) {

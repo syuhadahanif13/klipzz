@@ -6,6 +6,7 @@ function extractYoutubeVideoId(url: string): string {
   return match ? match[1] : 'dQw4w9WgXcQ';
 }
 
+// Ambil daftar semua campaign aktif
 export async function getCampaigns(req: Request, res: Response) {
   try {
     const { status, guest } = req.query;
@@ -41,6 +42,7 @@ export async function getCampaigns(req: Request, res: Response) {
   }
 }
 
+// Ambil detail campaign (support query via slug maupun UUID)
 export async function getCampaignById(req: Request, res: Response) {
   try {
     const { id } = req.params;

@@ -36,15 +36,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // First time visitor is a Guest (user is null)
+  // Waktu pertama kali buka web, statusnya guest (belum login)
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Sync session on mount
+  // Cek sesi user saat aplikasi pertama kali dimuat
   useEffect(() => {
     async function loadUserSession() {
       try {
-        // 1. Check local session storage first for immediate instant hydration
+        // Cek session lokal biar pas reload langsung keisi tanpa nunggu query
         if (typeof window !== 'undefined') {
           const cachedSession = localStorage.getItem('klipzz_user_session');
           if (cachedSession) {
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // 2. Sync with Supabase Auth
+        // Sinkronkan data profil dari supabase auth
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const { data: profile } = await supabase
@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const cleanId = identifier.trim().toLowerCase();
 
-      // Account 1: admin | psswd: m@juterusrajaemas
+      // Akun admin resmi
       if (
         (cleanId === 'admin' || cleanId === 'admin@klipzz.vid' || cleanId === 'admin@dipanggilkeruangan.com') &&
         password === 'm@juterusrajaemas'
@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
       }
 
-      // Account 2: clipper_hans | psswd: KramatRaya45.
+      // Akun clipper resmi
       if (
         (cleanId === 'clipper_hans' || cleanId === 'clipper_hans@klipzz.vid' || cleanId === 'hans' || cleanId === 'hans@klipzz.vid') &&
         password === 'KramatRaya45.'
@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
       }
 
-      // Supabase Auth verification for any additional registered users
+      // Verifikasi user clipper yang mendaftar baru di supabase auth
       const emailTarget = cleanId.includes('@') ? cleanId : `${cleanId}@klipzz.vid`;
       const { data, error } = await supabase.auth.signInWithPassword({
         email: emailTarget,

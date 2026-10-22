@@ -20,7 +20,7 @@ export const DEMO_ADMIN: UserProfile = {
   total_earned: 0,
 };
 
-// Initial user for guests is null (not automatically logged in)
+// User default waktu pertama buka web adalah null (belum login / guest)
 export const INITIAL_USER: UserProfile | null = null;
 
 export const MOCK_SOCIAL_ACCOUNTS: SocialAccount[] = [
@@ -50,7 +50,7 @@ export const MOCK_SOCIAL_ACCOUNTS: SocialAccount[] = [
   },
 ];
 
-// REAL OFFICIAL YOUTUBE EPISODES FROM @DipanggilKeRuangan
+// Data episode resmi dari kanal YouTube @DipanggilKeRuangan
 export const MOCK_CAMPAIGNS: Campaign[] = [
   {
     id: 'c1111111-1111-1111-1111-111111111111',

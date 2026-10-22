@@ -4,7 +4,7 @@ import path from 'path';
 
 const { Pool } = pg;
 
-// Supabase PostgreSQL pooler connection for ap-south-1
+// Koneksi pooler PostgreSQL Supabase (region ap-south-1)
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.dnytjjvkmtvbagitwlax:06p3FyODWzf28mtN@aws-0-ap-south-1.pooler.supabase.com:6543/postgres';
 
 console.log('Connecting to Supabase PostgreSQL at aws-0-ap-south-1.pooler.supabase.com:6543...');
@@ -21,7 +21,7 @@ async function runMigration() {
   try {
     console.log('Connected to Supabase PostgreSQL successfully!');
 
-    // Resolve schema and seed paths relative to cwd
+    // Ambil path file schema dan seed
     const schemaPath = path.resolve(process.cwd(), '../supabase/migrations/20261021_init_schema.sql');
     const seedPath = path.resolve(process.cwd(), '../supabase/seed.sql');
 
@@ -35,11 +35,11 @@ async function runMigration() {
     console.log(`Reading seed data from ${seedPath}...`);
     const seedSql = fs.readFileSync(seedPath, 'utf8');
 
-    console.log('Applying pilot seed data (@DipanggilKeRuangan)...');
+    console.log('Applying seed data (@DipanggilKeRuangan)...');
     await client.query(seedSql);
     console.log('Seed data applied successfully!');
 
-    // Verification check
+    // Verifikasi jumlah data yang sudah masuk ke database
     const campaignsCount = await client.query('SELECT count(*) FROM public.campaigns');
     const clippersCount = await client.query('SELECT count(*) FROM public.profiles WHERE role = \'clipper\'');
     const submissionsCount = await client.query('SELECT count(*) FROM public.submissions');

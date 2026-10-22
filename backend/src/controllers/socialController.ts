@@ -21,9 +21,9 @@ export async function requestChallenge(req: Request, res: Response) {
 
     const cleanHandle = handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`;
     const verificationCode = generateRandomCode();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins expiry
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // Berlaku selama 15 menit
 
-    // Upsert into social_accounts
+    // Simpan request challenge kode ke tabel social_accounts
     const { data, error } = await supabase
       .from('social_accounts')
       .upsert(
@@ -68,7 +68,7 @@ export async function verifyBioCode(req: Request, res: Response) {
       return res.status(400).json({ error: 'Missing accountId' });
     }
 
-    // Fetch existing challenge
+    // Ambil data akun yang mau diverifikasi
     const { data: account, error } = await supabase
       .from('social_accounts')
       .select('*')
@@ -83,7 +83,7 @@ export async function verifyBioCode(req: Request, res: Response) {
       return res.status(200).json({ success: true, message: 'Account is already verified', account });
     }
 
-    // Check expiration
+    // Cek apakah batas waktu 15 menit sudah lewat
     if (new Date() > new Date(account.verification_expires_at)) {
       return res.status(400).json({
         error: 'Verification code has expired. Please request a new code.',
@@ -91,7 +91,7 @@ export async function verifyBioCode(req: Request, res: Response) {
       });
     }
 
-    // Execute bio check via Apify scraper
+    // Cek bio profil publik lewat apify scraper
     const scrapeResult = await scrapeProfileBio(
       account.platform,
       account.handle,
@@ -107,7 +107,7 @@ export async function verifyBioCode(req: Request, res: Response) {
       });
     }
 
-    // Verified! Update in Supabase
+    // Kode cocok di bio, update status akun jadi terverifikasi di supabase
     const { data: updatedAccount, error: updateError } = await supabase
       .from('social_accounts')
       .update({

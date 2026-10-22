@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 4000;
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// Main API mount
+// Daftarkan semua rute API
 app.use('/api', apiRoutes);
 
 app.get('/', (req, res) => {

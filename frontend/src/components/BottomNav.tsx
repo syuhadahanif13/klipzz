@@ -28,7 +28,7 @@ export function BottomNav({ onOpenSubmit, onOpenBioChallenge }: BottomNavProps) 
   const isCampaign = pathname?.startsWith('/campaign');
   const isAuthPage = pathname === '/login' || pathname === '/signup';
 
-  // Do not render bottom nav on login or signup if desired, or keep it minimal
+  // Sembunyikan bottom nav di halaman login dan registrasi
   if (isAuthPage) return null;
 
   return (
@@ -52,7 +52,7 @@ export function BottomNav({ onOpenSubmit, onOpenBioChallenge }: BottomNavProps) 
           <span className="text-[10px] mt-1 tracking-tight">Beranda</span>
         </Link>
 
-        {/* TAB 2: CAMPAIGN / EXPLORE */}
+        {/* TAB 2: CAMPAIGN / EKSPLORASI */}
         <Link
           href="/#campaigns-section"
           className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
@@ -70,14 +70,14 @@ export function BottomNav({ onOpenSubmit, onOpenBioChallenge }: BottomNavProps) 
           <span className="text-[10px] mt-1 tracking-tight">Campaign</span>
         </Link>
 
-        {/* TAB 3: CENTER FLOATING ACTION (GUNTING KLIP) */}
+        {/* TAB 3: TOMBOL UTAMA (GUNTING / SETOR KLIP) */}
         <div className="relative -top-4 flex flex-col items-center">
           <button
             onClick={() => {
               if (onOpenSubmit) {
                 onOpenSubmit();
               } else {
-                // If on page without direct modal trigger, go to home campaigns
+                // Kalau lagi di halaman luar tanpa modal langsung, arahkan ke daftar campaign
                 window.location.href = '/#campaigns-section';
               }
             }}

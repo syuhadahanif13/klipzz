@@ -86,7 +86,7 @@ export function SubmitClipModal({
           throw new Error(errData.error || 'Gagal memproses klip melalui server.');
         }
       } catch (backendErr: any) {
-        // Direct Supabase insert with actual 0 initial views if backend scraping timed out
+        // Kalau backend scraper lagi antre, simpan langsung ke supabase dengan views 0 dan status pending
         console.warn('Backend scrape route error, saving directly to Supabase with pending status:', backendErr);
         const { data: dbSub, error: dbErr } = await supabase
           .from('submissions')

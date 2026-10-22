@@ -32,7 +32,7 @@ export default function DashboardPage() {
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Fetch live user data from Supabase
+  // Ambil data akun sosmed dan klip milik user yang login dari supabase
   useEffect(() => {
     async function loadUserData() {
       if (!user) {
@@ -41,7 +41,7 @@ export default function DashboardPage() {
         return;
       }
       try {
-        // Fetch social accounts for logged in user
+        // Tarik akun sosmed yang terhubung ke user id ini
         const { data: accounts } = await supabase
           .from('social_accounts')
           .select('*')
@@ -51,7 +51,7 @@ export default function DashboardPage() {
           setSocialAccounts(accounts as SocialAccount[]);
         }
 
-        // Fetch submissions for logged in user
+        // Tarik semua klip yang disetor oleh user ini
         const { data: userSubs } = await supabase
           .from('submissions')
           .select(`

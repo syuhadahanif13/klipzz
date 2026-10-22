@@ -3,7 +3,7 @@ import { supabase } from '../services/supabaseService.js';
 
 export async function getLeaderboard(req: Request, res: Response) {
   try {
-    // 1. Top clippers by total_earned
+    // 1. Ambil top kreator/clipper dengan total pendapatan tertinggi
     const { data: topClippers, error: clippersError } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, total_earned, balance')
@@ -11,7 +11,7 @@ export async function getLeaderboard(req: Request, res: Response) {
       .order('total_earned', { ascending: false })
       .limit(10);
 
-    // 2. Top viral submissions by views
+    // 2. Ambil klip dengan views terbanyak (video viral)
     const { data: topClips, error: clipsError } = await supabase
       .from('submissions')
       .select(`
@@ -28,7 +28,7 @@ export async function getLeaderboard(req: Request, res: Response) {
       .order('current_views', { ascending: false })
       .limit(10);
 
-    // 3. Platform aggregates
+    // 3. Hitung total reward pool dan komisi yang sudah cair
     const { data: campaigns } = await supabase
       .from('campaigns')
       .select('reward_pool, remaining_pool');

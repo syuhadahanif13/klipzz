@@ -21,7 +21,7 @@ export async function submitClip(req: Request, res: Response) {
       return res.status(400).json({ error: 'Unsupported URL. Only TikTok or Instagram Reels are accepted.' });
     }
 
-    // Verify campaign exists & is active
+    // Pastikan campaign ada dan statusnya masih aktif
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .select('*')
@@ -36,7 +36,7 @@ export async function submitClip(req: Request, res: Response) {
       return res.status(400).json({ error: 'This campaign is no longer accepting submissions.' });
     }
 
-    // Check if account is verified
+    // Cek apakah akun sosmed yang dipakai sudah terverifikasi di profil
     if (socialAccountId) {
       const { data: account } = await supabase
         .from('social_accounts')
@@ -52,7 +52,7 @@ export async function submitClip(req: Request, res: Response) {
       }
     }
 
-    // Check duplicate
+    // Cegah duplikasi url video klip di campaign yang sama
     const { data: existingSub } = await supabase
       .from('submissions')
       .select('id')
@@ -64,10 +64,10 @@ export async function submitClip(req: Request, res: Response) {
       return res.status(409).json({ error: 'This video clip URL has already been submitted for this campaign.' });
     }
 
-    // Scrape initial metrics via Apify
+    // Tarik metrik awal klip lewat apify scraper
     const metrics = await scrapePostMetrics(platform, postUrl);
 
-    // Initial check for required hashtags
+    // Cek kelengkapan hashtag wajib dari campaign di caption video
     const captionLower = (metrics.caption || '').toLowerCase();
     const missingHashtags = (campaign.hashtag_requirements || []).filter(
       (tag: string) => !captionLower.includes(tag.toLowerCase())
@@ -75,7 +75,7 @@ export async function submitClip(req: Request, res: Response) {
 
     const isHashtagValid = missingHashtags.length === 0;
 
-    // Calculate initial earnings if views exceed threshold
+    // Hitung estimasi komisi awal kalau views tembus batas minimal (threshold)
     let initialEarnings = 0;
     if (metrics.views >= campaign.min_views_threshold) {
       initialEarnings = (metrics.views / 1000.0) * campaign.rate_per_1k_views;

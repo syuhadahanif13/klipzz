@@ -54,7 +54,7 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
         setGeneratedCode(data.challenge.verificationCode);
         setStep(2);
       } else {
-        // Direct Supabase upsert fallback if API endpoint is unavailable
+        // Kalau endpoint backend lagi gak bisa dijangkau, simpan langsung ke supabase
         const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
         let code = 'KLIPZZ-';
         for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -106,7 +106,7 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
 
     try {
-      // 1. Try real backend verify via Apify
+      // Cek bio sosmed via scraper apify di backend
       let verifiedAcc: SocialAccount | null = null;
 
       try {
@@ -128,7 +128,7 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
         }
       } catch (apiErr: any) {
         console.warn('Backend verify route notice:', apiErr.message);
-        // Direct Supabase update if backend proxy blocked
+        // Update status akun langsung di supabase
         const { data: dbAcc, error: dbErr } = await supabase
           .from('social_accounts')
           .update({

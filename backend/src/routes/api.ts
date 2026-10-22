@@ -17,26 +17,26 @@ import { getLeaderboard } from '../controllers/leaderboardController.js';
 
 const router = Router();
 
-// Health Check
+// Cek status server API
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Social Verification (Bio Code Challenge)
+// Verifikasi kepemilikan akun sosmed (Bio Code Challenge)
 router.post('/social/challenge', requestChallenge);
 router.post('/social/verify', verifyBioCode);
 router.get('/social/accounts', getSocialAccounts);
 
-// Campaigns
+// Manajemen dan eksplorasi campaign
 router.get('/campaigns', getCampaigns);
 router.get('/campaigns/:id', getCampaignById);
 router.post('/campaigns', createCampaign);
 
-// Submissions
+// Setor klip video dan riwayat submission kreator
 router.post('/submissions', submitClip);
 router.get('/submissions/clipper/:clipperId', getClipperSubmissions);
 
-// Leaderboard & Global Stats
+// Papan peringkat (leaderboard) & metrik agregat platform
 router.get('/leaderboard', getLeaderboard);
 
 export default router;
