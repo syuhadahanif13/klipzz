@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +23,7 @@ export default function LoginPage() {
 
     setLoading(true);
     setErrorMessage(null);
+    setInfoMessage(null);
 
     const res = await signIn(identifier, password);
     setLoading(false);
@@ -72,6 +74,13 @@ export default function LoginPage() {
           </div>
         )}
 
+        {infoMessage && (
+          <div className="p-3.5 rounded-xl bg-[#6667AB]/20 border border-[#6667AB]/50 text-[#F5D5E0] text-xs flex items-center gap-2.5 shadow-sm">
+            <AlertCircle className="w-4 h-4 shrink-0 text-[#6667AB]" />
+            <span>{infoMessage}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider mb-1.5">
@@ -82,7 +91,7 @@ export default function LoginPage() {
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="admin / clipper_hans"
+                placeholder="nama@email.com atau username"
                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#210635] border border-[#7B337E]/60 text-[#F5D5E0] placeholder-[#F5D5E0]/40 text-sm focus:outline-none focus:border-[#6667AB] transition-colors"
                 required
               />
@@ -95,9 +104,13 @@ export default function LoginPage() {
               <label className="text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider">
                 Kata Sandi
               </label>
-              <span className="text-[11px] text-[#6667AB] hover:underline cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setInfoMessage('Untuk reset kata sandi, hubungi admin komunitas resmi di info@klipzz.vid atau via grup komunitas.')}
+                className="text-[11px] text-[#6667AB] hover:underline cursor-pointer"
+              >
                 Lupa sandi?
-              </span>
+              </button>
             </div>
             <div className="relative">
               <input

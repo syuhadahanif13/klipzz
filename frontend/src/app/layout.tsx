@@ -7,10 +7,10 @@ export const metadata: Metadata = {
   description: 'Platform clipping campaign menghubungkan channel YouTube DiPanggil ke Ruangan dengan para clipper konten komedi TikTok & Instagram Reels.',
 };
 
+// Buang maximumScale biar bisa pinch-to-zoom untuk aksesibilitas
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: 'cover',
   themeColor: '#210635',
 };

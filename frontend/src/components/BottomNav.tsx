@@ -2,15 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Home,
   Flame,
   Scissors,
-  Wallet,
+  Trophy,
   User,
-  ShieldCheck,
-  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,12 +17,14 @@ interface BottomNavProps {
   onOpenBioChallenge?: () => void;
 }
 
-export function BottomNav({ onOpenSubmit, onOpenBioChallenge }: BottomNavProps) {
+export function BottomNav({ onOpenSubmit }: BottomNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
 
   const isHome = pathname === '/';
   const isDashboard = pathname === '/dashboard';
+  const isLeaderboard = pathname === '/leaderboard';
   const isCampaign = pathname?.startsWith('/campaign');
   const isAuthPage = pathname === '/login' || pathname === '/signup';
 
@@ -77,11 +77,11 @@ export function BottomNav({ onOpenSubmit, onOpenBioChallenge }: BottomNavProps) 
               if (onOpenSubmit) {
                 onOpenSubmit();
               } else {
-                // Kalau lagi di halaman luar tanpa modal langsung, arahkan ke daftar campaign
-                window.location.href = '/#campaigns-section';
+                // Alihkan ke daftar campaign tanpa hard reload browser
+                router.push('/#campaigns-section');
               }
             }}
-            className="w-13 h-13 p-3 rounded-full bg-gradient-to-tr from-[#7B337E] via-[#6667AB] to-[#F5D5E0] text-white shadow-[0_4px_20px_rgba(123,51,126,0.6)] border-2 border-[#210635] flex items-center justify-center hover:scale-105 active:scale-95 transition-all group"
+            className="w-14 h-14 p-3.5 rounded-full bg-gradient-to-tr from-[#7B337E] via-[#6667AB] to-[#F5D5E0] text-white shadow-[0_4px_20px_rgba(123,51,126,0.6)] border-2 border-[#210635] flex items-center justify-center hover:scale-105 active:scale-95 transition-all group"
             aria-label="Setor Klip"
           >
             <Scissors className="w-6 h-6 -rotate-45 text-white drop-shadow group-hover:rotate-0 transition-transform" />
@@ -91,29 +91,29 @@ export function BottomNav({ onOpenSubmit, onOpenBioChallenge }: BottomNavProps) 
           </span>
         </div>
 
-        {/* TAB 4: CUAN / WALLET */}
+        {/* TAB 4: LEADERBOARD / PERINGKAT */}
         <Link
-          href="/dashboard"
+          href="/leaderboard"
           className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-            isDashboard
+            isLeaderboard
               ? 'text-[#F5D5E0] font-bold'
               : 'text-[#F5D5E0]/60 hover:text-[#F5D5E0]'
           }`}
         >
           <div className="relative">
-            <Wallet className="w-5 h-5 transition-transform active:scale-90 text-emerald-400" />
-            {isDashboard && (
+            <Trophy className="w-5 h-5 transition-transform active:scale-90 text-amber-400" />
+            {isLeaderboard && (
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] shadow-sm" />
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight">Cuan</span>
+          <span className="text-[10px] mt-1 tracking-tight">Top Rank</span>
         </Link>
 
-        {/* TAB 5: AKUN / PROFIL */}
+        {/* TAB 5: AKUN / STUDIO */}
         <Link
           href={user ? '/dashboard' : '/login'}
           className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-            pathname === '/login' || pathname === '/signup'
+            isDashboard
               ? 'text-[#F5D5E0] font-bold'
               : 'text-[#F5D5E0]/60 hover:text-[#F5D5E0]'
           }`}
@@ -126,9 +126,12 @@ export function BottomNav({ onOpenSubmit, onOpenBioChallenge }: BottomNavProps) 
             ) : (
               <User className="w-5 h-5 transition-transform active:scale-90" />
             )}
+            {isDashboard && (
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] shadow-sm" />
+            )}
           </div>
           <span className="text-[10px] mt-1 tracking-tight">
-            {user ? 'Akun' : 'Masuk'}
+            {user ? 'Studio' : 'Masuk'}
           </span>
         </Link>
       </div>

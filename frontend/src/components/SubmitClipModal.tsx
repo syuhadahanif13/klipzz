@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { X, Send, Hash, CheckCircle2, AlertCircle, Sparkles, Link2 } from 'lucide-react';
 import { Campaign, SocialAccount, Submission } from '../types';
@@ -26,15 +26,19 @@ export function SubmitClipModal({
 }: SubmitClipModalProps) {
   const { user } = useAuth();
   const [postUrl, setPostUrl] = useState('');
-  const [selectedAccountId, setSelectedAccountId] = useState(
-    socialAccounts.length > 0 ? socialAccounts[0].id : ''
-  );
+  const verifiedAccounts = socialAccounts.filter((a) => a.is_verified);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  if (!isOpen || !campaign) return null;
+  // Pastikan akun default selalu mengarah ke akun yang sudah lolos verifikasi
+  useEffect(() => {
+    if (verifiedAccounts.length > 0 && (!selectedAccountId || !verifiedAccounts.some((a) => a.id === selectedAccountId))) {
+      setSelectedAccountId(verifiedAccounts[0].id);
+    }
+  }, [socialAccounts]);
 
-  const verifiedAccounts = socialAccounts.filter((a) => a.is_verified);
+  if (!isOpen || !campaign) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

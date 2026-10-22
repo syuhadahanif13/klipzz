@@ -4,25 +4,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile, UserRole } from '../types';
 
-const ADMIN_USER: UserProfile = {
-  id: '11111111-1111-1111-1111-111111111111',
-  username: 'admin',
-  full_name: 'Administrator Ruangan',
-  avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-  role: 'admin',
-  balance: 0,
-  total_earned: 0,
-};
-
-const CLIPPER_HANS: UserProfile = {
-  id: '22222222-2222-2222-2222-222222222222',
-  username: 'clipper_hans',
-  full_name: 'Hans Clipper',
-  avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-  role: 'clipper',
-  balance: 2450000,
-  total_earned: 6850000,
-};
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -169,34 +150,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const cleanId = identifier.trim().toLowerCase();
 
-      // Akun admin resmi
-      if (
-        (cleanId === 'admin' || cleanId === 'admin@klipzz.vid' || cleanId === 'admin@dipanggilkeruangan.com') &&
-        password === 'm@juterusrajaemas'
-      ) {
-        supabase.auth.signInWithPassword({ email: 'admin@klipzz.vid', password }).catch(() => {});
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('klipzz_user_session', JSON.stringify(ADMIN_USER));
+      // Cari email tujuan jika user mengetik username (tanpa tanda @)
+      let emailTarget = cleanId;
+      if (!cleanId.includes('@')) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .ilike('username', cleanId)
+          .maybeSingle();
+
+        if (profile?.email) {
+          emailTarget = profile.email;
+        } else if (cleanId === 'admin') {
+          emailTarget = 'admin@rajaemas.id';
+        } else if (cleanId === 'clipper_hans' || cleanId === 'hans') {
+          emailTarget = 'clipper_hans@rajaemas.id';
+        } else {
+          emailTarget = `${cleanId}@klipzz.vid`;
         }
-        setUser(ADMIN_USER);
-        return { success: true };
       }
 
-      // Akun clipper resmi
-      if (
-        (cleanId === 'clipper_hans' || cleanId === 'clipper_hans@klipzz.vid' || cleanId === 'hans' || cleanId === 'hans@klipzz.vid') &&
-        password === 'KramatRaya45.'
-      ) {
-        supabase.auth.signInWithPassword({ email: 'clipper_hans@klipzz.vid', password }).catch(() => {});
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('klipzz_user_session', JSON.stringify(CLIPPER_HANS));
-        }
-        setUser(CLIPPER_HANS);
-        return { success: true };
-      }
-
-      // Verifikasi user clipper yang mendaftar baru di supabase auth
-      const emailTarget = cleanId.includes('@') ? cleanId : `${cleanId}@klipzz.vid`;
+      // Autentikasi resmi via Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email: emailTarget,
         password,
@@ -216,8 +190,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (profile) {
           const userObj: UserProfile = {
             id: profile.id,
-            username: profile.username,
-            full_name: profile.full_name || profile.username,
+            username: profile.username || 'user',
+            full_name: profile.full_name || profile.username || 'Kreator',
             avatar_url: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
             role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
             balance: Number(profile.balance) || 0,

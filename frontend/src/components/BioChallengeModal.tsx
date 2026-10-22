@@ -148,19 +148,12 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
         }
       } catch (apiErr: any) {
         console.warn('Backend verify route notice:', apiErr.message);
-        // Update status akun langsung di supabase
-        const { data: dbAcc, error: dbErr } = await supabase
-          .from('social_accounts')
-          .update({
-            is_verified: true,
-            verified_at: new Date().toISOString(),
-          })
-          .eq('id', challengeAccountId)
-          .select()
-          .single();
-
-        if (dbErr) throw dbErr;
-        verifiedAcc = dbAcc as SocialAccount;
+        // Jangan pernah bypass verifikasi otomatis pas scraper backend error, bahaya celah keamanan!
+        const msg =
+          apiErr.message && !apiErr.message.includes('fetch') && !apiErr.message.includes('Network')
+            ? apiErr.message
+            : 'Verifikasi gagal — server sedang sibuk. Coba lagi dalam beberapa menit.';
+        throw new Error(msg);
       }
 
       if (verifiedAcc) {

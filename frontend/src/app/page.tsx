@@ -142,7 +142,16 @@ export default function HomePage() {
     return matchSearch;
   });
 
-  const estimatedEarnings = Math.round((viewsEstimate / 1000) * 18000);
+  // Ambil batas maksimal payout dari campaign atau default ke 2.000.000
+  const maxPayoutPerClip =
+    campaigns.length > 0 && campaigns[0]?.max_payout_per_clip
+      ? Number(campaigns[0].max_payout_per_clip)
+      : 2000000;
+
+  // Hitung komisi mentah trus di-cap biar ga bablas ngelewatin batas payout campaign
+  const rawEarnings = Math.round((viewsEstimate / 1000) * 18000);
+  const isCapped = rawEarnings >= maxPayoutPerClip;
+  const estimatedEarnings = Math.min(rawEarnings, maxPayoutPerClip);
 
   return (
     <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
@@ -225,13 +234,15 @@ export default function HomePage() {
             <div>
               <span className="text-xs text-[#F5D5E0]/60 font-medium block">Total Views Klip</span>
               <span className="text-lg sm:text-2xl font-black text-[#6667AB] tracking-tight">
-                {totalPlatformViews > 0 ? `${totalPlatformViews.toLocaleString('id-ID')} Views` : 'Real-time Sync'}
+                {/* Kalo datanya 0 tampilin 0 Views bukan jargon sync */}
+                {totalPlatformViews > 0 ? `${totalPlatformViews.toLocaleString('id-ID')} Views` : '0 Views'}
               </span>
             </div>
             <div>
               <span className="text-xs text-[#F5D5E0]/60 font-medium block">Clipper Terdaftar</span>
               <span className="text-lg sm:text-2xl font-black text-[#F5D5E0] tracking-tight">
-                {totalClippersCount > 0 ? `${totalClippersCount} Kreator` : 'Verified Supabase'}
+                {/* Kalo datanya 0 tampilin 0 Kreator bukan jargon supabase */}
+                {totalClippersCount > 0 ? `${totalClippersCount} Kreator` : '0 Kreator'}
               </span>
             </div>
           </div>
@@ -306,6 +317,12 @@ export default function HomePage() {
                 <div className="text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight">
                   Rp {estimatedEarnings.toLocaleString('id-ID')}
                 </div>
+                {/* Kasih tau clipper kalo udah mentok limit payout */}
+                {isCapped && (
+                  <p className="text-[11px] font-medium text-amber-300">
+                    *Dibatasi maks. Rp {maxPayoutPerClip.toLocaleString('id-ID')} per klip sesuai ketentuan campaign
+                  </p>
+                )}
                 <span className="text-[11px] text-[#F5D5E0]/60 block">
                   Berdasarkan tarif rata-rata Rp 18.000 / 1.000 views
                 </span>
@@ -557,9 +574,9 @@ export default function HomePage() {
             <span>• Platform Clipping Campaign Resmi DiPanggil ke Ruangan</span>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="hover:text-[#F5D5E0] cursor-pointer">Panduan Komunitas</span>
-            <span className="hover:text-[#F5D5E0] cursor-pointer">Aturan Hak Cipta</span>
-            <span className="hover:text-[#F5D5E0] cursor-pointer">Hubungi Kami</span>
+            <a href="#alur-kerja" className="hover:text-[#F5D5E0] transition-colors">Panduan Komunitas</a>
+            <a href="#campaigns-section" className="hover:text-[#F5D5E0] transition-colors">Aturan Kampanye</a>
+            <a href="https://instagram.com/dipanggilkeruangan" target="_blank" rel="noopener noreferrer" className="hover:text-[#F5D5E0] transition-colors">Hubungi Kami</a>
           </div>
         </div>
       </footer>

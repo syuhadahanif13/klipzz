@@ -3,15 +3,13 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scissors, Lock, Mail, User, ShieldCheck, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Scissors, Lock, Mail, User, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { UserRole } from '../../types';
 
 export default function SignupPage() {
   const router = useRouter();
   const { signUp } = useAuth();
 
-  const [role, setRole] = useState<UserRole>('clipper');
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -29,7 +27,8 @@ export default function SignupPage() {
 
     const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
 
-    const res = await signUp(email, password, cleanUsername, fullName || cleanUsername, role);
+    // Seluruh registrasi publik otomatis berstatus Clipper / Creator
+    const res = await signUp(email, password, cleanUsername, fullName || cleanUsername, 'clipper');
     setLoading(false);
 
     if (res.success) {
@@ -64,45 +63,11 @@ export default function SignupPage() {
       <div className="w-full max-w-lg glass-card rounded-3xl p-6 sm:p-8 border border-[#7B337E]/50 shadow-moon-glow space-y-6">
         <div>
           <h1 className="text-2xl font-black text-[#F5D5E0]">
-            Daftar Akun Baru
+            Daftar Akun Clipper
           </h1>
           <p className="text-xs text-[#F5D5E0]/70 mt-1">
-            Pilih peranmu untuk memulai di platform klipzz.vid.
+            Mulai potong video, upload ke medsos, dan cairkan komisimu.
           </p>
-        </div>
-
-        {/* Role Selection Tabs */}
-        <div>
-          <label className="block text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider mb-2">
-            Pilih Peran Akun
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setRole('clipper')}
-              className={`py-3 px-4 rounded-xl border flex items-center justify-center gap-2 font-bold text-xs sm:text-sm transition-all ${
-                role === 'clipper'
-                  ? 'bg-gradient-to-r from-[#7B337E] to-[#6667AB] border-[#F5D5E0]/50 text-[#F5D5E0] shadow-moon-glow'
-                  : 'bg-[#420D4B]/50 border-[#7B337E]/30 text-[#F5D5E0]/70 hover:bg-[#420D4B]'
-              }`}
-            >
-              <Scissors className="w-4 h-4 -rotate-45" />
-              <span>Clipper / Creator</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setRole('admin')}
-              className={`py-3 px-4 rounded-xl border flex items-center justify-center gap-2 font-bold text-xs sm:text-sm transition-all ${
-                role === 'admin'
-                  ? 'bg-gradient-to-r from-[#7B337E] to-[#6667AB] border-[#F5D5E0]/50 text-[#F5D5E0] shadow-moon-glow'
-                  : 'bg-[#420D4B]/50 border-[#7B337E]/30 text-[#F5D5E0]/70 hover:bg-[#420D4B]'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4 text-amber-300" />
-              <span>Admin Kampanye</span>
-            </button>
-          </div>
         </div>
 
         {errorMessage && (

@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Youtube, Plus, Sparkles, DollarSign } from 'lucide-react';
+import { X, Youtube, Plus, Sparkles, AlertCircle } from 'lucide-react';
 import { Campaign } from '../types';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 
 interface CreateCampaignModalProps {
   isOpen: boolean;
@@ -11,57 +13,87 @@ interface CreateCampaignModalProps {
 }
 
 export function CreateCampaignModal({ isOpen, onClose, onCampaignCreated }: CreateCampaignModalProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [episodeGuest, setEpisodeGuest] = useState('');
   const [rewardPool, setRewardPool] = useState('20000000');
   const [ratePer1k, setRatePer1k] = useState('15000');
   const [hashtags, setHashtags] = useState('#DipanggilKeRuangan, #KlipzzViral');
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
 
     const videoIdMatch = youtubeUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-    const videoId = videoIdMatch ? videoIdMatch[1] : 'dQw4w9WgXcQ';
+    if (!videoIdMatch) {
+      setErrorMessage('Format URL YouTube tidak valid. Pastikan menyalin link video YouTube yang benar.');
+      return;
+    }
+    const videoId = videoIdMatch[1];
 
     const poolNum = Number(rewardPool) || 10000000;
     const rateNum = Number(ratePer1k) || 15000;
+    const tagList = hashtags.split(',').map((t) => t.trim()).filter(Boolean);
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
 
-    const newCampaign: Campaign = {
-      id: `camp_${Date.now()}`,
-      brand_id: '11111111-1111-1111-1111-111111111111',
-      title: title || 'Episode Baru DiPanggil ke Ruangan',
-      description: `Momen punchline dan potongan seru episode ${episodeGuest || 'Terbaru'} di channel @DipanggilKeRuangan.`,
-      source_youtube_url: youtubeUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      youtube_video_id: videoId,
-      thumbnail_url: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-      channel_name: '@DipanggilKeRuangan',
-      episode_guest: episodeGuest || 'Spesial Guest',
-      reward_pool: poolNum,
-      remaining_pool: poolNum,
-      rate_per_1k_views: rateNum,
-      max_payout_per_clip: 1500000,
-      min_views_threshold: 1000,
-      hashtag_requirements: hashtags.split(',').map((t) => t.trim()).filter(Boolean),
-      guidelines: [
-        'Ambil punchline/momen terlucu atau terheboh',
-        'Gunakan subtitle font dinamis',
-        'Wajib sertakan hashtag kampanye di caption video',
-      ],
-      status: 'active',
-      start_date: new Date().toISOString(),
-      end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      brand: {
-        username: 'dipanggilkeruangan_official',
-        full_name: 'DiPanggil ke Ruangan Media',
-        avatar_url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=200&auto=format&fit=crop&q=80',
-      },
-    };
+    const brandId = user?.id || '11111111-1111-1111-1111-111111111111';
 
-    onCampaignCreated(newCampaign);
-    onClose();
+    setSubmitting(true);
+
+    try {
+      // Simpan langsung ke database Supabase
+      const { data, error } = await supabase
+        .from('campaigns')
+        .insert({
+          brand_id: brandId,
+          title: title.trim(),
+          description: `Momen punchline dan potongan seru episode ${episodeGuest.trim() || 'Terbaru'} di channel @DipanggilKeRuangan.`,
+          source_youtube_url: youtubeUrl.trim(),
+          youtube_video_id: videoId,
+          thumbnail_url: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          channel_name: '@DipanggilKeRuangan',
+          episode_guest: episodeGuest.trim() || 'Spesial Guest',
+          reward_pool: poolNum,
+          remaining_pool: poolNum,
+          rate_per_1k_views: rateNum,
+          max_payout_per_clip: 1500000,
+          min_views_threshold: 1000,
+          hashtag_requirements: tagList,
+          guidelines: [
+            'Ambil punchline/momen terlucu atau terheboh',
+            'Gunakan subtitle font dinamis yang mudah dibaca',
+            'Wajib sertakan hashtag kampanye di caption video',
+          ],
+          status: 'active',
+          start_date: new Date().toISOString(),
+          end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          slug: slug || `episode-${Date.now()}`,
+        })
+        .select('*, brand:profiles!campaigns_brand_id_fkey(username, full_name, avatar_url)')
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        onCampaignCreated(data as unknown as Campaign);
+      }
+      onClose();
+    } catch (err: any) {
+      console.error('Error creating campaign:', err);
+      setErrorMessage(err.message || 'Gagal menyimpan campaign ke database. Silakan coba kembali.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -86,6 +118,13 @@ export function CreateCampaignModal({ isOpen, onClose, onCampaignCreated }: Crea
             Alokasikan budget reward pool untuk menggerakkan ribuan clipper menyebarkan episode podcast-mu di TikTok & Reels.
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="mb-4 p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -182,10 +221,20 @@ export function CreateCampaignModal({ isOpen, onClose, onCampaignCreated }: Crea
 
           <button
             type="submit"
-            className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 flex items-center justify-center gap-2 mt-2"
+            disabled={submitting}
+            className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 flex items-center justify-center gap-2 mt-2 disabled:opacity-50 transition-opacity"
           >
-            <Plus className="w-4 h-4" />
-            <span>Terbitkan Campaign</span>
+            {submitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Menyimpan ke Supabase...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" />
+                <span>Terbitkan Campaign</span>
+              </>
+            )}
           </button>
         </form>
       </div>

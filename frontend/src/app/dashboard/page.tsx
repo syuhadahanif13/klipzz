@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Wallet,
   TrendingUp,
@@ -26,6 +27,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { SocialAccount, Submission } from '../../types';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -130,8 +132,13 @@ export default function DashboardPage() {
             <div className="text-2xl font-black text-emerald-400">
               Rp {(user?.balance || 0).toLocaleString('id-ID')}
             </div>
-            <button className="text-[11px] font-bold text-[#F5D5E0] underline hover:text-emerald-300">
-              Tarik Saldo ke Rekening / E-Wallet →
+            {/* Tombol tarik saldo di-disable dulu ya karena fiturnya masih disiapin */}
+            <button
+              disabled
+              title="Fitur penarikan saldo sedang dalam pengembangan"
+              className="text-[11px] font-bold text-[#F5D5E0] underline cursor-not-allowed opacity-50"
+            >
+              Tarik Saldo ke Rekening / E-Wallet → (Segera Hadir)
             </button>
           </div>
 
@@ -344,7 +351,18 @@ export default function DashboardPage() {
                       </td>
 
                       <td className="py-4 px-4">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        {/* Atur warna badge status klip: approved hijau, pending kuning, rejected merah */}
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                            sub.status === 'approved'
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              : sub.status === 'pending'
+                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                              : sub.status === 'rejected'
+                              ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                              : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                          }`}
+                        >
                           {sub.status}
                         </span>
                       </td>
@@ -378,7 +396,9 @@ export default function DashboardPage() {
       <CreateCampaignModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCampaignCreated={(camp) => console.log('Created:', camp)}
+        onCampaignCreated={(camp) => {
+          router.push(`/campaign/${camp.slug || camp.id}`);
+        }}
       />
 
       {/* MOBILE BOTTOM APP NAVIGATION */}

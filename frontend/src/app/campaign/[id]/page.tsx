@@ -640,7 +640,9 @@ export default function CampaignDetailPage() {
       <CreateCampaignModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCampaignCreated={(camp) => console.log('Created campaign:', camp)}
+        onCampaignCreated={(camp) => {
+          router.push(`/campaign/${camp.slug || camp.id}`);
+        }}
       />
 
       {/* MOBILE BOTTOM APP NAVIGATION */}

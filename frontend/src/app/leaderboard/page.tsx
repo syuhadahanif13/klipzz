@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Trophy, Medal, Flame, Eye, Scissors, ExternalLink, Sparkles } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
 import { BottomNav } from '../../components/BottomNav';
@@ -21,6 +22,7 @@ interface LeaderboardUser {
 }
 
 export default function LeaderboardPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [topClippers, setTopClippers] = useState<LeaderboardUser[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -39,15 +41,32 @@ export default function LeaderboardPage() {
           .limit(10);
 
         if (dbClippers && dbClippers.length > 0) {
-          const mapped: LeaderboardUser[] = dbClippers.map((c, index) => ({
-            rank: index + 1,
-            username: `@${c.username}`,
-            fullName: c.full_name || c.username,
-            avatar: c.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-            totalEarned: Number(c.total_earned) || 0,
-            totalViews: Math.round(((Number(c.total_earned) || 0) / 18) * 1000),
-            clipsCount: Math.max(1, Math.round(Number(c.total_earned) / 1200000)),
-          }));
+          const clipperIds = dbClippers.map((c) => c.id);
+
+          // Ambil data submissions riil clipper buat ngitung views dan total klip asli
+          const { data: subsData } = await supabase
+            .from('submissions')
+            .select('id, clipper_id, current_views')
+            .in('clipper_id', clipperIds);
+
+          const mapped: LeaderboardUser[] = dbClippers.map((c, index) => {
+            const userSubs = (subsData || []).filter((s) => s.clipper_id === c.id);
+            const totalViews = userSubs.reduce(
+              (sum, s) => sum + (Number(s.current_views) || 0),
+              0
+            );
+            const clipsCount = userSubs.length;
+
+            return {
+              rank: index + 1,
+              username: `@${c.username}`,
+              fullName: c.full_name || c.username,
+              avatar: c.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+              totalEarned: Number(c.total_earned) || 0,
+              totalViews,
+              clipsCount,
+            };
+          });
           setTopClippers(mapped);
         } else {
           setTopClippers([]);
@@ -259,7 +278,9 @@ export default function LeaderboardPage() {
       <CreateCampaignModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCampaignCreated={(camp) => console.log('Created:', camp)}
+        onCampaignCreated={(camp) => {
+          router.push(`/campaign/${camp.slug || camp.id}`);
+        }}
       />
 
       {/* MOBILE BOTTOM APP NAVIGATION */}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -32,8 +32,25 @@ export function Navbar({
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = user?.role === 'admin';
+
+  // Tutup menu dropdown jika user klik di luar area avatar
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen]);
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-[#7B337E]/30 bg-[#210635]/90 backdrop-blur-md">
@@ -157,7 +174,7 @@ export function Navbar({
               </div>
 
               {/* User Avatar with Dropdown */}
-              <div className="relative">
+              <div ref={dropdownRef} className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
                   className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-[#420D4B]/60 transition-colors"
