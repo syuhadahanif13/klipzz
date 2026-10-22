@@ -5,18 +5,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Scissors,
-  Wallet,
-  Trophy,
   Flame,
+  Trophy,
   UserCheck,
   PlusCircle,
   ShieldCheck,
-  LogIn,
   LogOut,
   User,
   ChevronDown,
-  Sparkles,
-  Settings,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,10 +22,7 @@ interface NavbarProps {
   onOpenCreateCampaign?: () => void;
 }
 
-export function Navbar({
-  onOpenBioChallenge,
-  onOpenCreateCampaign,
-}: NavbarProps) {
+export function Navbar({ onOpenBioChallenge, onOpenCreateCampaign }: NavbarProps) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -36,206 +30,161 @@ export function Navbar({
 
   const isAdmin = user?.role === 'admin';
 
-  // Tutup menu dropdown jika user klik di luar area avatar
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
       }
     }
-
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    if (menuOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
+  const navLink = (href: string, label: string) => {
+    const active = pathname === href;
+    return (
+      <Link
+        href={href}
+        className={`rounded-full px-3 py-2 text-[0.9375rem] transition-colors outline-none ${
+          active
+            ? 'bg-[var(--surface-2)] text-fg'
+            : 'text-fg-muted hover:bg-[var(--surface-2)] hover:text-fg'
+        }`}
+      >
+        {label}
+      </Link>
+    );
+  };
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[#7B337E]/20 bg-[#210635]/95 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand Logo */}
-        <div className="flex items-center space-x-6">
-          <Link href="/" className="flex items-center space-x-2.5 group">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#7B337E] to-[#6667AB] flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-200">
-              <Scissors className="w-4 h-4 text-[#F5D5E0] -rotate-45" />
+    <header className="sticky top-0 z-50 transition-[top] duration-300">
+      <div className="header-blur transition-colors duration-200">
+        {/* Full-width nav — persis TernakKlip: px-5 sm:px-[4vw] */}
+        <div className="w-full px-5 sm:px-[4vw] flex h-[4.4375rem] items-center gap-5">
+
+          {/* Logo */}
+          <Link href="/" aria-label="klipzz.vid" className="shrink-0 flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-full bg-[var(--accent)] flex items-center justify-center group-hover:opacity-90 transition-opacity">
+              <Scissors className="w-4 h-4 text-white -rotate-45" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-black tracking-tight text-[#F5D5E0] flex items-center">
-                klipzz<span className="text-[#6667AB]">.vid</span>
-              </span>
-            </div>
+            <span className="font-bold text-[1rem] text-fg tracking-tight hidden sm:block">
+              klipzz<span className="text-[var(--accent)]">.vid</span>
+            </span>
           </Link>
 
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center space-x-1.5">
-            <Link
-              href="/"
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                pathname === '/'
-                  ? 'bg-white text-zinc-950 shadow-sm'
-                  : 'text-[#F5D5E0]/70 hover:text-[#F5D5E0] hover:bg-[#420D4B]/50'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-[#6667AB]" />
-                Discover
-              </span>
-            </Link>
-
-            <Link
-              href="/dashboard"
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                pathname === '/dashboard'
-                  ? 'bg-white text-zinc-950 shadow-sm'
-                  : 'text-[#F5D5E0]/70 hover:text-[#F5D5E0] hover:bg-[#420D4B]/50'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Scissors className="w-3.5 h-3.5 text-[#7B337E]" />
-                {isAdmin ? 'Admin Portal' : 'Clipper Studio'}
-              </span>
-            </Link>
-
-            <Link
-              href="/leaderboard"
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                pathname === '/leaderboard'
-                  ? 'bg-white text-zinc-950 shadow-sm'
-                  : 'text-[#F5D5E0]/70 hover:text-[#F5D5E0] hover:bg-[#420D4B]/50'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                Leaderboard
-              </span>
-            </Link>
+          {/* Desktop Nav links */}
+          <nav aria-label="Main" className="relative hidden lg:block">
+            <ul className="flex items-center gap-0.5">
+              <li>{navLink('/', 'Discover')}</li>
+              <li>{navLink('/dashboard', isAdmin ? 'Admin Portal' : 'Clipper Studio')}</li>
+              <li>{navLink('/leaderboard', 'Leaderboard')}</li>
+            </ul>
           </nav>
-        </div>
 
-        {/* Right Action Area */}
-        <div className="flex items-center space-x-3 sm:space-x-4">
-          {user ? (
-            <>
-              {/* Clipper Action: Bio Verification */}
-              {!isAdmin && onOpenBioChallenge && (
-                <button
-                  onClick={onOpenBioChallenge}
-                  className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/50 hover:border-[#F5D5E0]/50 transition-all shadow-sm"
-                  title="Verifikasi Akun TikTok/Instagram dengan Bio Code"
-                >
-                  <UserCheck className="w-3.5 h-3.5 text-[#6667AB]" />
-                  <span>Verifikasi Bio</span>
-                </button>
-              )}
+          {/* Right side */}
+          <div className="ml-auto flex items-center gap-2">
+            {user ? (
+              <>
+                {/* Bio verify (clipper) */}
+                {!isAdmin && onOpenBioChallenge && (
+                  <button
+                    onClick={onOpenBioChallenge}
+                    title="Verifikasi Akun TikTok/Instagram"
+                    className="hidden lg:flex items-center gap-1.5 rounded-full px-3 h-9 text-[0.875rem] font-medium text-fg-muted hover:bg-[var(--surface-2)] hover:text-fg transition-colors"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    <span>Verifikasi Bio</span>
+                  </button>
+                )}
 
-              {/* Admin Action: Create New Campaign */}
-              {isAdmin && onOpenCreateCampaign && (
-                <button
-                  onClick={onOpenCreateCampaign}
-                  className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-90 transition-all"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Buat Campaign</span>
-                </button>
-              )}
+                {/* Create campaign (admin) */}
+                {isAdmin && onOpenCreateCampaign && (
+                  <button
+                    onClick={onOpenCreateCampaign}
+                    className="flex items-center gap-1.5 rounded-full px-4 h-9 text-[0.875rem] font-semibold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Buat Campaign</span>
+                  </button>
+                )}
 
-              {/* Clipper Wallet Balance Pill */}
-              {!isAdmin && (
-                <Link
-                  href="/dashboard"
-                  className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#420D4B]/80 border border-[#7B337E]/40 shadow-inner hover:border-emerald-400/40 transition-colors"
-                >
-                  <div className="w-5 h-5 rounded-md bg-[#7B337E]/40 flex items-center justify-center">
-                    <Wallet className="w-3 h-3 text-emerald-400" />
-                  </div>
-                  <div className="flex flex-col text-right">
-                    <span className="text-[9px] text-[#F5D5E0]/60 font-medium leading-none">Dompet</span>
-                    <span className="text-xs font-bold text-emerald-400 leading-tight">
+                {/* Wallet (clipper) */}
+                {!isAdmin && (
+                  <Link
+                    href="/dashboard"
+                    className="hidden sm:flex items-center gap-1.5 rounded-full px-3 h-9 text-[0.875rem] font-medium border border-[var(--line)] hover:border-[var(--line-hover)] hover:bg-[var(--surface-2)] transition-colors"
+                  >
+                    <Wallet className="w-4 h-4 text-[var(--cpm)]" />
+                    <span className="font-mono text-[0.8125rem] font-bold text-[var(--cpm)]">
                       Rp {Number(user?.balance || 0).toLocaleString('id-ID')}
                     </span>
-                  </div>
-                </Link>
-              )}
-
-              {/* Role Indicator Badge (Static / Production) */}
-              <div
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#210635] text-[#F5D5E0]/80 border border-[#6667AB]/40 shadow-inner"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-[#6667AB]" />
-                <span className="hidden sm:inline">Role:</span>
-                <span className={`capitalize font-bold ${isAdmin ? 'text-amber-400' : 'text-[#F5D5E0]'}`}>
-                  {user?.role || 'clipper'}
-                </span>
-              </div>
-
-              {/* User Avatar with Dropdown */}
-              <div ref={dropdownRef} className="relative">
-                <button
-                  onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-[#420D4B]/60 transition-colors"
-                >
-                  <img
-                    src={user?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'}
-                    alt={user?.full_name || user?.username || 'User'}
-                    className="w-9 h-9 rounded-xl border border-[#7B337E]/60 object-cover"
-                  />
-                  <ChevronDown className="w-3.5 h-3.5 text-[#F5D5E0]/60" />
-                </button>
-
-                {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 glass-card rounded-2xl p-2 border border-[#7B337E]/50 shadow-moon-glow space-y-1 z-50">
-                    <div className="px-3 py-2 border-b border-[#7B337E]/30">
-                      <span className="font-bold text-xs text-[#F5D5E0] block truncate">
-                        {user?.full_name || user?.username || 'Kreator'}
-                      </span>
-                      <span className="text-[10px] text-[#6667AB] block truncate">
-                        @{user?.username || 'user'} • <span className="capitalize text-amber-300 font-semibold">{user?.role || 'clipper'}</span>
-                      </span>
-                    </div>
-
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setMenuOpen(false)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#F5D5E0] hover:bg-[#420D4B] transition-colors"
-                    >
-                      <User className="w-3.5 h-3.5 text-[#6667AB]" />
-                      <span>{isAdmin ? 'Admin Portal' : 'Clipper Studio'}</span>
-                    </Link>
-
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        signOut();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-300 hover:bg-rose-950/40 transition-colors"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Keluar (Logout)</span>
-                    </button>
-                  </div>
+                  </Link>
                 )}
-              </div>
-            </>
-          ) : (
-            /* Guest Experience */
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <Link
-                href="/login"
-                className="px-4 py-1.5 rounded-full text-xs font-semibold text-[#F5D5E0] hover:bg-[#420D4B]/60 border border-[#7B337E]/40 transition-colors"
-              >
-                Masuk
-              </Link>
 
-              <Link
-                href="/signup"
-                className="px-4 py-1.5 rounded-full text-xs font-semibold bg-white text-zinc-950 hover:bg-zinc-200 shadow-sm transition-all"
-              >
-                Daftar Akun
-              </Link>
-            </div>
-          )}
+                {/* Avatar dropdown */}
+                <div ref={dropdownRef} className="relative">
+                  <button
+                    onClick={() => setMenuOpen(!menuOpen)}
+                    className="flex items-center gap-1 p-1 rounded-full hover:bg-[var(--surface-2)] transition-colors"
+                  >
+                    <img
+                      src={user?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'}
+                      alt={user?.full_name || user?.username || 'User'}
+                      className="w-8 h-8 rounded-full border border-[var(--line)] object-cover"
+                    />
+                    <ChevronDown className={`w-3.5 h-3.5 text-fg-muted transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {menuOpen && (
+                    <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-1.5 shadow-xl space-y-0.5 z-50">
+                      <div className="px-3 py-2 border-b border-[var(--line)]">
+                        <span className="font-semibold text-[0.8125rem] text-fg block truncate">
+                          {user?.full_name || user?.username || 'Kreator'}
+                        </span>
+                        <span className="text-[0.75rem] text-fg-subtle block truncate">
+                          @{user?.username || 'user'} ·{' '}
+                          <span className="capitalize text-[var(--accent)] font-semibold">{user?.role || 'clipper'}</span>
+                        </span>
+                      </div>
+
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setMenuOpen(false)}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[0.8125rem] font-medium text-fg-muted hover:bg-[var(--surface-2)] hover:text-fg transition-colors"
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        {isAdmin ? 'Admin Portal' : 'Clipper Studio'}
+                      </Link>
+
+                      <button
+                        onClick={() => { setMenuOpen(false); signOut(); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[0.8125rem] font-medium text-rose-400 hover:bg-rose-950/40 transition-colors"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Keluar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* Guest */
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="inline-flex shrink-0 items-center justify-center rounded-full font-medium text-fg-muted hover:bg-[var(--surface-2)] hover:text-fg h-9 px-4 text-[0.875rem] transition-colors"
+                >
+                  Masuk
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] h-9 px-4 text-[0.875rem] transition-colors"
+                >
+                  Daftar Gratis
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

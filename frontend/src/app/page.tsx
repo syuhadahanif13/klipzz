@@ -2,22 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   Scissors,
-  Flame,
   Search,
   CheckCircle2,
   Play,
-  ShieldCheck,
-  ChevronRight,
-  TrendingUp,
-  Sparkles,
-  SlidersHorizontal,
-  Wallet,
-  Calculator,
   ArrowRight,
-  ExternalLink,
+  Calculator,
 } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
 import { BottomNav } from '../components/BottomNav';
@@ -32,23 +23,21 @@ import { MOCK_CAMPAIGNS } from '../data/mockData';
 type FilterTab = 'all' | 'newest' | 'highest_budget' | 'highest_rate';
 
 export default function HomePage() {
-  const router = useRouter();
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState<boolean>(false);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [totalPlatformViews, setTotalPlatformViews] = useState<number>(0);
-  const [totalClippersCount, setTotalClippersCount] = useState<number>(0);
 
-  // State Hero Carousel
+  // Hero Carousel
   const [activeHeroIndex, setActiveHeroIndex] = useState<number>(0);
+  const [heroPaused, setHeroPaused] = useState(false);
 
   // Filter & Search
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Kalkulator Cuan
+  // Calculator
   const [viewsEstimate, setViewsEstimate] = useState<number>(50000);
 
   // Modals
@@ -57,7 +46,7 @@ export default function HomePage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
-  // Ambil campaign aktif dan metrik platform langsung dari supabase
+  // Fetch data from Supabase
   useEffect(() => {
     async function fetchLivePlatformData() {
       setIsLoadingCampaigns(true);
@@ -76,22 +65,9 @@ export default function HomePage() {
           .from('submissions')
           .select('id, current_views, earnings, status');
 
-        if (dbSubs) {
-          setSubmissions(dbSubs as Submission[]);
-          const sumViews = dbSubs.reduce((acc, s) => acc + (Number(s.current_views) || 0), 0);
-          setTotalPlatformViews(sumViews);
-        }
-
-        const { count: clippersCount } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('role', 'clipper');
-
-        if (clippersCount !== null) {
-          setTotalClippersCount(clippersCount);
-        }
+        if (dbSubs) setSubmissions(dbSubs as Submission[]);
       } catch (e) {
-        console.error('Error fetching live platform data:', e);
+        console.error('Error fetching platform data:', e);
       } finally {
         setIsLoadingCampaigns(false);
       }
@@ -99,21 +75,15 @@ export default function HomePage() {
     fetchLivePlatformData();
   }, []);
 
-  // Ambil akun sosmed terverifikasi milik user yang sedang login
   useEffect(() => {
     async function fetchUserAccounts() {
-      if (!user) {
-        setSocialAccounts([]);
-        return;
-      }
+      if (!user) { setSocialAccounts([]); return; }
       try {
         const { data } = await supabase
           .from('social_accounts')
           .select('*')
           .eq('user_id', user.id);
-        if (data) {
-          setSocialAccounts(data as SocialAccount[]);
-        }
+        if (data) setSocialAccounts(data as SocialAccount[]);
       } catch (err) {
         console.warn('Failed to load user social accounts:', err);
       }
@@ -121,24 +91,35 @@ export default function HomePage() {
     fetchUserAccounts();
   }, [user?.id]);
 
+  // Auto-advance hero carousel
+  useEffect(() => {
+    if (campaigns.length <= 1 || heroPaused) return;
+    const t = setInterval(() => {
+      setActiveHeroIndex((i) => (i + 1) % Math.min(campaigns.length, 5));
+    }, 7000);
+    return () => clearInterval(t);
+  }, [campaigns.length, heroPaused]);
+
   const openSubmitFor = (camp: Campaign) => {
     setSelectedCampaign(camp);
     setIsSubmitModalOpen(true);
   };
 
-  // Filter & Sorting logic ala TernakKlip
-  const filteredAndSortedCampaigns = campaigns
+  // Filter & Sort
+  const filteredCampaigns = campaigns
     .filter((camp) => {
-      const matchSearch =
-        camp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (camp.episode_guest || '').toLowerCase().includes(searchQuery.toLowerCase());
-      return matchSearch;
+      const q = searchQuery.toLowerCase();
+      return (
+        camp.title.toLowerCase().includes(q) ||
+        (camp.episode_guest || '').toLowerCase().includes(q) ||
+        (camp.channel_name || '').toLowerCase().includes(q)
+      );
     })
     .sort((a, b) => {
       if (activeTab === 'newest') {
-        const dateB = new Date(b.created_at || b.start_date || '').getTime() || 0;
-        const dateA = new Date(a.created_at || a.start_date || '').getTime() || 0;
-        return dateB - dateA;
+        const dB = new Date(b.created_at || b.start_date || '').getTime() || 0;
+        const dA = new Date(a.created_at || a.start_date || '').getTime() || 0;
+        return dB - dA;
       }
       if (activeTab === 'highest_budget') {
         return (Number(b.remaining_pool) || 0) - (Number(a.remaining_pool) || 0);
@@ -146,15 +127,13 @@ export default function HomePage() {
       if (activeTab === 'highest_rate') {
         return (Number(b.rate_per_1k_views) || 0) - (Number(a.rate_per_1k_views) || 0);
       }
-      return 0; // 'all' default order
+      return 0;
     });
 
-  const featuredCampaign = campaigns[activeHeroIndex] || campaigns[0] || MOCK_CAMPAIGNS[0];
-  const featuredRewardPool = Number(featuredCampaign?.reward_pool) || 25000000;
-  const featuredRemainingPool = Number(featuredCampaign?.remaining_pool) || 16800000;
-  const featuredRate = Number(featuredCampaign?.rate_per_1k_views) || 18000;
+  const featuredCampaigns = campaigns.slice(0, 5);
+  const featuredCampaign = featuredCampaigns[activeHeroIndex] || campaigns[0] || MOCK_CAMPAIGNS[0];
 
-  // Kalkulator cuan
+  // Calculator
   const maxPayoutPerClip =
     campaigns.length > 0 && campaigns[0]?.max_payout_per_clip
       ? Number(campaigns[0].max_payout_per_clip)
@@ -164,403 +143,491 @@ export default function HomePage() {
   const estimatedEarnings = Math.min(rawEarnings, maxPayoutPerClip);
 
   return (
-    <div className="min-h-screen bg-[#190428] text-[#F5D5E0] flex flex-col font-sans antialiased selection:bg-[#7B337E] selection:text-white">
+    <div className="min-h-screen surface-app flex flex-col antialiased">
       <Navbar
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
         onOpenCreateCampaign={() => setIsCreateModalOpen(true)}
       />
 
-      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10 pb-28 md:pb-16">
-        {/* ========================================================================= */}
-        {/* HERO FEATURED CAMPAIGN (CINEMATIC BANNER ALA TERNAKKLIP DISCOVER)        */}
-        {/* ========================================================================= */}
-        <section className="relative w-full overflow-hidden rounded-3xl bg-[#26073d] border border-[#7B337E]/30 shadow-2xl">
-          <div className="relative h-[340px] sm:h-[430px] md:h-[480px] w-full overflow-hidden">
-            {/* Background Image with Dark Vignette */}
+      <main className="flex-1 pb-24 md:pb-6">
+
+        {/* ============================================================
+            HERO — Full-bleed cinematic banner (ala TernakKlip)
+            ============================================================ */}
+        <section
+          aria-label="Featured campaigns"
+          className="relative w-full shrink-0"
+        >
+          {/* Full-bleed image container */}
+          <div className="relative overflow-hidden bg-surface-2"
+            style={{ height: 'clamp(21rem,52vh,27rem)' }}>
+
+            {/* Background image */}
             <img
-              src={featuredCampaign.thumbnail_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=1200'}
+              src={featuredCampaign.thumbnail_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=1600'}
               alt={featuredCampaign.title}
-              className="absolute inset-0 w-full h-full object-cover object-center scale-105 transition-transform duration-700"
+              className="absolute inset-0 w-full h-full object-cover object-center scale-[1.03] transition-opacity duration-700"
             />
-            {/* Gradients to keep text ultra-readable */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#190428] via-[#190428]/70 to-transparent sm:bg-gradient-to-r sm:from-[#190428]/95 sm:via-[#190428]/75 sm:to-transparent" />
-            <div className="absolute inset-0 bg-black/30" />
 
-            {/* Hero Content Overlay */}
-            <div className="relative h-full flex flex-col justify-end p-6 sm:p-10 md:p-12 z-10 max-w-2xl space-y-4">
-              {/* Channel / Brand Identity Pill */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-white shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{featuredCampaign.channel_name || '@DipanggilKeRuangan'}</span>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#6667AB] fill-[#6667AB] text-white" />
-                </span>
-                <span className="text-xs text-white/70 font-medium">
-                  Bintang Tamu: <strong className="text-white">{featuredCampaign.episode_guest}</strong>
-                </span>
-              </div>
+            {/* Gradient overlays — exactly TernakKlip style */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+              style={{ background: 'linear-gradient(to right, rgb(0 0 0 / 0.85), rgb(0 0 0 / 0.42) 42%, transparent 72%)' }}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+              style={{ background: 'linear-gradient(to top, rgb(0 0 0 / 0.75), transparent 44%)' }}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 sm:hidden"
+              style={{ background: 'linear-gradient(to top, rgb(0 0 0 / 0.9), rgb(0 0 0 / 0.6) 52%, transparent 88%)' }}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-28"
+              style={{ background: 'linear-gradient(to bottom, rgb(0 0 0 / 0.45), transparent)' }}
+            />
 
-              {/* Title */}
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-md line-clamp-2">
-                {featuredCampaign.title}
-              </h1>
+            {/* Hero Content */}
+            <div className="relative flex h-full flex-col justify-end pt-24 pb-16 sm:pb-20">
+              <div className="w-full px-5 sm:px-[4vw]">
+                <div className="flex max-w-xl flex-col items-start gap-3">
+                  {/* Brand / channel */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1 text-[0.75rem] font-medium text-white/80 sm:text-[0.875rem]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      {featuredCampaign.channel_name || 'klipzz.vid'}
+                    </span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[var(--accent)]" />
+                  </div>
 
-              {/* Rate & Budget Highlights */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-white/80">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-white/60">Tarif CPM:</span>
-                  <span className="font-extrabold text-emerald-400 font-mono text-sm sm:text-base">
-                    Rp {featuredRate.toLocaleString('id-ID')} / 1K views
-                  </span>
+                  {/* Title */}
+                  <h2 className="line-clamp-3 text-[1.4rem] leading-[1.1] font-semibold text-white sm:text-[2.25rem]">
+                    {featuredCampaign.title}
+                  </h2>
+
+                  {/* Rate & budget */}
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.875rem] text-white/65">
+                    <span>Campaign</span>
+                    <span className="font-semibold text-white">
+                      Rp {(Number(featuredCampaign.rate_per_1k_views) || 18000).toLocaleString('id-ID')}rb/1k views
+                    </span>
+                    <span>
+                      Rp {((Number(featuredCampaign.remaining_pool) || 16800000) / 1_000_000).toFixed(0)}jt tersisa
+                    </span>
+                  </div>
+
+                  {/* CTA Buttons */}
+                  <div className="flex w-full items-center gap-2 sm:w-auto">
+                    <Link
+                      href={`/campaign/${featuredCampaign.slug || featuredCampaign.id}`}
+                      className="flex h-11 flex-1 items-center justify-center rounded-[40px] bg-white px-5 text-[0.875rem] font-semibold whitespace-nowrap text-black transition-colors hover:bg-white/90 sm:flex-none sm:px-7"
+                    >
+                      Buka Creator Kit
+                    </Link>
+                    <button
+                      onClick={() => openSubmitFor(featuredCampaign)}
+                      className="flex h-11 flex-1 items-center justify-center rounded-[40px] border border-white/30 px-5 text-[0.875rem] font-medium whitespace-nowrap text-white backdrop-blur-sm transition-colors hover:bg-white/10 sm:flex-none sm:px-6"
+                    >
+                      <Scissors className="w-4 h-4 -rotate-45 mr-2" />
+                      Setor Klip
+                    </button>
+                  </div>
                 </div>
-                <span className="text-white/30">•</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-white/60">Sisa Pool:</span>
-                  <span className="font-bold text-white font-mono">
-                    Rp {featuredRemainingPool.toLocaleString('id-ID')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Action Buttons (Pills ala TernakKlip) */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <Link
-                  href={`/campaign/${featuredCampaign.slug || featuredCampaign.id}`}
-                  className="px-6 py-3 rounded-full font-bold text-xs sm:text-sm bg-white hover:bg-white/90 text-black shadow-lg transition-all active:scale-95 flex items-center gap-2"
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>Buka Creator Kit</span>
-                </Link>
-
-                <button
-                  onClick={() => openSubmitFor(featuredCampaign)}
-                  className="px-6 py-3 rounded-full font-semibold text-xs sm:text-sm bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/30 transition-all active:scale-95 flex items-center gap-2"
-                >
-                  <Scissors className="w-4 h-4 -rotate-45" />
-                  <span>Setor Klip</span>
-                </button>
               </div>
             </div>
 
-            {/* Carousel Navigation Dots */}
-            {campaigns.length > 1 && (
-              <div className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 z-20 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
-                {campaigns.slice(0, 4).map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveHeroIndex(idx)}
-                    className={`h-2 rounded-full transition-all ${
-                      activeHeroIndex === idx ? 'w-6 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'
-                    }`}
-                    aria-label={`Slide ${idx + 1}`}
-                  />
-                ))}
+            {/* Carousel dots — bottom left (TernakKlip style) */}
+            {featuredCampaigns.length > 1 && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
+                <div className="w-full px-5 sm:px-[4vw] flex justify-start pb-4 sm:pb-5">
+                  <div className="pointer-events-auto flex w-fit items-center gap-2 rounded-xl border border-white/10 bg-black/50 px-2.5 py-1.5 backdrop-blur-md">
+                    <div className="flex items-center gap-1">
+                      {featuredCampaigns.map((_, idx) => (
+                        <button
+                          key={idx}
+                          aria-label={`Slide ${idx + 1}`}
+                          onClick={() => { setActiveHeroIndex(idx); setHeroPaused(true); }}
+                          className="py-1.5"
+                        >
+                          <span
+                            className={`block h-1 overflow-hidden rounded-full transition-[width] duration-300 ${
+                              activeHeroIndex === idx ? 'w-8 bg-white/70' : 'w-2 bg-white/25'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={heroPaused ? 'Resume' : 'Pause'}
+                      onClick={() => setHeroPaused((p) => !p)}
+                      className="grid size-5 shrink-0 place-items-center rounded text-white/50 hover:text-white transition-colors"
+                    >
+                      {heroPaused ? (
+                        <Play className="size-3 fill-current" />
+                      ) : (
+                        <span className="flex gap-0.5">
+                          <span className="w-0.5 h-3 bg-current rounded" />
+                          <span className="w-0.5 h-3 bg-current rounded" />
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </section>
 
-        {/* ========================================================================= */}
-        {/* DISCOVER BAR: FILTER TABS & SEARCH (TERNAKKLIP DISCOVER PATTERN)         */}
-        {/* ========================================================================= */}
-        <section id="campaigns-section" className="space-y-6 pt-2">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#7B337E]/25 pb-4">
-            {/* Segmented Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-              {[
-                { id: 'all', label: 'Semua Episode' },
-                { id: 'newest', label: 'Terbaru' },
-                { id: 'highest_budget', label: 'Budget Terbesar' },
-                { id: 'highest_rate', label: 'Tarif CPM Tertinggi' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as FilterTab)}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-white text-black shadow-md'
-                      : 'bg-[#26073d]/60 text-[#F5D5E0]/70 hover:text-white hover:bg-[#420D4B]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+        {/* ============================================================
+            DISCOVER BAR — Filter tabs + search (TernakKlip style)
+            ============================================================ */}
+        <div className="w-full px-5 sm:px-[4vw] pt-5 flex flex-wrap items-center gap-x-3 sm:h-14 sm:flex-nowrap border-b border-[var(--line)]">
 
-            {/* Search Input Box */}
-            <div className="relative w-full md:w-72 shrink-0">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari episode atau bintang tamu..."
-                className="w-full pl-9 pr-4 py-2 rounded-full bg-[#26073d] border border-[#7B337E]/40 text-xs sm:text-sm text-[#F5D5E0] placeholder-[#F5D5E0]/40 focus:outline-none focus:border-white transition-colors"
-              />
-              <Search className="w-4 h-4 text-[#F5D5E0]/50 absolute left-3 top-2.5" />
-            </div>
+          {/* Type segments */}
+          <div className="relative flex h-9 shrink-0 items-center rounded-[14px] border border-[var(--line)] bg-[var(--surface-2)] p-0.5">
+            <button
+              type="button"
+              className="relative z-10 h-8 shrink-0 rounded-xl px-3.5 text-[0.875rem] font-medium whitespace-nowrap text-fg bg-[var(--surface-3)]"
+            >
+              Semua
+            </button>
+            <button
+              type="button"
+              className="relative z-10 h-8 shrink-0 rounded-xl px-3.5 text-[0.875rem] font-medium whitespace-nowrap text-fg-muted hover:text-fg"
+            >
+              Podcast
+            </button>
+            <button
+              type="button"
+              className="relative z-10 h-8 shrink-0 rounded-xl px-3.5 text-[0.875rem] font-medium whitespace-nowrap text-fg-muted hover:text-fg"
+            >
+              Komedi
+            </button>
           </div>
 
-          {/* ========================================================================= */}
-          {/* CAMPAIGN GRID (CLEAN 2-3 COLUMNS CARDS ALA TERNAKKLIP DISCOVER)          */}
-          {/* ========================================================================= */}
-          {isLoadingCampaigns ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5">
-              {[1, 2, 3, 4].map((n) => (
-                <div key={n} className="rounded-2xl bg-[#26073d]/60 border border-[#7B337E]/30 p-4 space-y-3 animate-pulse">
-                  <div className="aspect-video rounded-xl bg-[#420D4B]/40" />
-                  <div className="h-4 bg-[#420D4B]/60 rounded w-2/3" />
-                  <div className="h-3 bg-[#420D4B]/30 rounded w-full" />
-                </div>
-              ))}
-            </div>
-          ) : filteredAndSortedCampaigns.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl bg-[#26073d]/40 border border-[#7B337E]/30 space-y-3">
-              <Flame className="w-8 h-8 text-[#6667AB] mx-auto" />
-              <h3 className="text-base font-bold text-white">Tidak Ada Campaign</h3>
-              <p className="text-xs text-[#F5D5E0]/60 max-w-sm mx-auto">
-                {searchQuery
-                  ? `Tidak ada episode yang cocok dengan pencarian "${searchQuery}".`
-                  : 'Belum ada episode campaign aktif saat ini.'}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5">
-              {filteredAndSortedCampaigns.map((camp) => {
-                const pool = Number(camp.reward_pool) || 1;
-                const rem = Number(camp.remaining_pool) || 0;
-                const remainingPercentage = Math.min(100, Math.max(0, Math.round((rem / pool) * 100)));
-                const rate = Number(camp.rate_per_1k_views) || 15000;
+          <span aria-hidden="true" className="hidden h-5 w-px shrink-0 bg-[var(--line)] sm:block" />
 
-                return (
-                  <div
-                    key={camp.id}
-                    className="group flex flex-col justify-between rounded-2xl bg-[#26073d]/70 hover:bg-[#30094e] border border-[#7B337E]/35 hover:border-[#6667AB]/70 transition-all p-3.5 space-y-3.5 shadow-sm"
-                  >
-                    {/* Media Thumbnail Container */}
-                    <Link
-                      href={`/campaign/${camp.slug || camp.id}`}
-                      className="relative aspect-video rounded-xl overflow-hidden bg-black block cursor-pointer"
-                    >
-                      <img
-                        src={camp.thumbnail_url}
-                        alt={camp.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-                      {/* Guest Tag */}
-                      <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-[11px] font-semibold text-white">
-                        {camp.episode_guest}
-                      </div>
-
-                      {/* Video Indicator */}
-                      <div className="absolute bottom-2.5 right-2.5 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-[10px] font-medium flex items-center gap-1 border border-white/10">
-                        <Play className="w-3 h-3 fill-current" />
-                        <span>Source Footage</span>
-                      </div>
-                    </Link>
-
-                    {/* Metadata Header & Title */}
-                    <div className="space-y-1.5 px-1">
-                      <div className="flex items-center justify-between text-xs text-[#F5D5E0]/60">
-                        <span className="flex items-center gap-1 font-medium text-white/80">
-                          <span>{camp.channel_name || '@DipanggilKeRuangan'}</span>
-                          <CheckCircle2 className="w-3 h-3 text-[#6667AB]" />
-                        </span>
-                        <span className="text-[11px] font-mono text-emerald-400 font-bold">
-                          Aktif Payout
-                        </span>
-                      </div>
-
-                      <Link href={`/campaign/${camp.slug || camp.id}`} className="block">
-                        <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-emerald-300 transition-colors line-clamp-2 leading-snug">
-                          {camp.title}
-                        </h3>
-                      </Link>
-
-                      <p className="text-xs text-[#F5D5E0]/70 line-clamp-2 leading-relaxed">
-                        {camp.description}
-                      </p>
-                    </div>
-
-                    {/* Budget & CPM Metric Bar (TernakKlip Style) */}
-                    <div className="space-y-2 pt-2 border-t border-[#7B337E]/25 px-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-[11px] text-[#F5D5E0]/70">
-                          <strong className="text-white font-bold">{remainingPercentage}%</strong> budget tersisa
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-xs font-bold">
-                          Rp {rate.toLocaleString('id-ID')} / 1K
-                        </span>
-                      </div>
-
-                      {/* Progress Line */}
-                      <div className="w-full h-1.5 rounded-full bg-[#190428] overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] rounded-full transition-all duration-500"
-                          style={{ width: `${remainingPercentage}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="grid grid-cols-2 gap-2 pt-1 px-1">
-                      <Link
-                        href={`/campaign/${camp.slug || camp.id}`}
-                        className="py-2.5 px-3 rounded-xl text-center text-xs font-semibold bg-[#190428] hover:bg-[#420D4B] text-white border border-[#7B337E]/40 transition-colors flex items-center justify-center gap-1 shadow-sm"
-                      >
-                        <span>Creator Kit</span>
-                      </Link>
-
-                      <button
-                        onClick={() => openSubmitFor(camp)}
-                        className="py-2.5 px-3 rounded-xl text-center text-xs font-bold bg-white hover:bg-white/90 text-black shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <Scissors className="w-3.5 h-3.5 -rotate-45" />
-                        <span>Setor Klip</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* ========================================================================= */}
-        {/* SIMULASI KALKULATOR CUAN (COMPACT & MODERN)                              */}
-        {/* ========================================================================= */}
-        <section className="rounded-3xl p-6 sm:p-8 bg-[#26073d]/80 border border-[#7B337E]/40 shadow-lg">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
-            <div className="space-y-3 max-w-lg">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7B337E]/30 text-white border border-[#7B337E]/50 text-xs font-semibold">
-                <Calculator className="w-3.5 h-3.5 text-[#6667AB]" />
-                <span>Kalkulator Penghasilan Klip</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black text-white leading-snug">
-                Simulasi Cuan dari Setiap Views yang Kamu Hasilkan
-              </h2>
-              <p className="text-xs text-[#F5D5E0]/70 leading-relaxed">
-                Tiap 1.000 views di TikTok / Reels menghasilkan komisi otomatis. Geser estimasi views untuk melihat proyeksi cuan dari 1 video klip.
-              </p>
-
-              {/* Views Presets */}
-              <div className="flex flex-wrap gap-2 pt-1">
+          {/* Sort tabs + search */}
+          <div className="order-last flex h-11 min-w-0 basis-full items-center gap-2 sm:order-none sm:contents">
+            <div className="relative h-full min-w-0 flex-1">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10"
+                style={{ background: 'linear-gradient(to left, var(--bg) 20%, transparent)' }}
+              />
+              <div role="tablist" id="campaigns-section" className="no-scrollbar flex h-full items-stretch gap-0.5 overflow-x-auto">
                 {[
-                  { label: '25K Views', value: 25000 },
-                  { label: '50K (FYP)', value: 50000 },
-                  { label: '150K (Viral)', value: 150000 },
-                  { label: '500K (Mega)', value: 500000 },
-                ].map((p) => (
+                  { id: 'all', label: 'Terbaru' },
+                  { id: 'newest', label: 'Newest' },
+                  { id: 'highest_budget', label: 'Budget Terbesar' },
+                  { id: 'highest_rate', label: 'CPM Tertinggi' },
+                ].map((tab) => (
                   <button
-                    key={p.value}
-                    onClick={() => setViewsEstimate(p.value)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                      viewsEstimate === p.value
-                        ? 'bg-white text-black font-bold'
-                        : 'bg-[#190428] text-[#F5D5E0]/70 hover:text-white border border-[#7B337E]/40'
+                    key={tab.id}
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    onClick={() => setActiveTab(tab.id as FilterTab)}
+                    className={`relative flex h-full shrink-0 items-center px-3 text-[0.9375rem] font-medium whitespace-nowrap transition-colors ${
+                      activeTab === tab.id ? 'text-fg' : 'text-fg-muted hover:text-fg'
                     }`}
                   >
-                    {p.label}
+                    {tab.label}
+                    {activeTab === tab.id && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-x-3 bottom-0 h-0.5 rounded-t bg-[var(--accent)]"
+                      />
+                    )}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Slider & Result Box */}
-            <div className="w-full lg:max-w-md bg-[#190428] rounded-2xl p-6 border border-[#7B337E]/40 space-y-5">
-              <div>
-                <div className="flex justify-between items-center text-xs font-semibold mb-2">
-                  <span className="text-[#F5D5E0]/70">Estimasi Views Postingan:</span>
-                  <span className="text-white font-mono font-bold text-sm">
-                    {viewsEstimate.toLocaleString('id-ID')} views
+            {/* Search */}
+            <div className="relative flex h-9 shrink-0 items-center overflow-hidden rounded-full border border-[var(--line)] bg-[var(--surface-2)] w-9 sm:w-56 transition-all focus-within:w-64 focus-within:border-[var(--line-hover)]">
+              <span className="pointer-events-none absolute left-0 grid size-9 place-items-center text-fg-muted">
+                <Search className="size-[1rem]" />
+              </span>
+              <input
+                type="search"
+                aria-label="Cari campaign"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari campaign..."
+                className="h-full w-full bg-transparent pl-9 pr-3 text-[0.875rem] outline-none placeholder:text-fg-subtle text-fg"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ============================================================
+            CAMPAIGN GRID — Clean cards ala TernakKlip
+            ============================================================ */}
+        <div className="w-full px-5 sm:px-[4vw] mt-6">
+          {isLoadingCampaigns ? (
+            <div className="grid w-full gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,18.75rem),1fr))]">
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] overflow-hidden animate-pulse">
+                  <div className="h-[11.5rem] bg-[var(--surface-2)]" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-3 bg-[var(--surface-3)] rounded w-1/3" />
+                    <div className="h-4 bg-[var(--surface-3)] rounded w-3/4" />
+                    <div className="h-3 bg-[var(--surface-3)] rounded w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredCampaigns.length === 0 ? (
+            <div className="py-16 text-center space-y-2">
+              <p className="text-fg-muted text-sm">
+                {searchQuery
+                  ? `Tidak ada campaign yang cocok dengan "${searchQuery}".`
+                  : 'Belum ada campaign aktif.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid w-full items-start gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,18.75rem),1fr))]">
+              {filteredCampaigns.map((camp) => {
+                const pool = Number(camp.reward_pool) || 1;
+                const rem = Number(camp.remaining_pool) || 0;
+                const pct = Math.min(100, Math.max(0, Math.round((rem / pool) * 100)));
+                const rate = Number(camp.rate_per_1k_views) || 15000;
+                const rateLabel =
+                  rate >= 1000
+                    ? `Rp ${(rate / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}rb/1K`
+                    : `Rp ${rate}/1K`;
+
+                return (
+                  <div
+                    key={camp.id}
+                    className="group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] transition-colors duration-300 hover:border-[var(--accent-line)]"
+                  >
+                    {/* Thumbnail */}
+                    <div className="p-1 pb-0">
+                      <div className="relative h-[11.5rem] w-full overflow-hidden rounded-xl bg-[var(--surface-2)]">
+                        <img
+                          src={camp.thumbnail_url}
+                          alt={camp.title}
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                        />
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
+                          style={{ background: 'linear-gradient(to top, rgb(0 0 0 / 0.7), transparent)' }}
+                        />
+                        {/* Guest pill */}
+                        {camp.episode_guest && (
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[10px] font-medium border border-white/10">
+                            {camp.episode_guest}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Body */}
+                    <div className="flex min-h-[7.75rem] flex-col gap-2 px-4 pt-3 pb-2">
+                      {/* Channel + platforms */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate text-[0.8125rem] leading-none font-medium text-fg">
+                            {camp.channel_name || 'klipzz.vid'}
+                          </span>
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-[var(--accent)] fill-[var(--accent)]" />
+                        </span>
+                        <span className="text-[0.6875rem] text-fg-subtle shrink-0">
+                          {camp.status === 'active' ? 'Aktif' : camp.status}
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="line-clamp-2 text-[0.9375rem] leading-snug font-semibold text-fg">
+                        {camp.title}
+                      </h3>
+
+                      {/* Budget & CPM */}
+                      <div className="mt-auto flex min-w-0 items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-baseline gap-1 whitespace-nowrap text-[0.75rem] text-fg-subtle">
+                          <span className="text-[0.8125rem] font-bold text-fg">{pct}%</span> budget left
+                        </span>
+                        <span className="flex items-center gap-1.5 shrink-0">
+                          <span className="flex items-center gap-1 rounded-full border border-[var(--cpm-line)] bg-[var(--cpm-soft)] px-2.5 py-0.5 text-[0.6875rem] font-bold text-[var(--cpm)]">
+                            {rateLabel}
+                          </span>
+                        </span>
+                      </div>
+
+                      {/* Hover reveal: action */}
+                      <div className="-my-1 grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 group-hover:grid-rows-[1fr] group-focus-within:grid-rows-[1fr]">
+                        <div className="overflow-hidden opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
+                          <div className="flex items-center gap-2 pt-2 pb-1">
+                            <Link
+                              href={`/campaign/${camp.slug || camp.id}`}
+                              className="relative z-10 flex h-9 items-center rounded-full bg-[var(--accent)] px-4 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+                            >
+                              Buka Creator Kit
+                            </Link>
+                            <button
+                              onClick={() => openSubmitFor(camp)}
+                              className="relative z-10 flex h-9 items-center rounded-full border border-[var(--line)] bg-[var(--surface-2)] px-3 text-[0.8125rem] font-medium text-fg-muted hover:text-fg transition-colors"
+                            >
+                              <Scissors className="w-3.5 h-3.5 -rotate-45" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Budget progress bar */}
+                    <div className="h-[3px] w-full bg-[var(--surface-3)]">
+                      <div
+                        className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-700"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+
+                    {/* Full-card click target */}
+                    <Link
+                      href={`/campaign/${camp.slug || camp.id}`}
+                      className="absolute inset-0 rounded-2xl outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                    >
+                      <span className="sr-only">Lihat detail {camp.title}</span>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ============================================================
+            KALKULATOR CUAN
+            ============================================================ */}
+        <div className="w-full px-5 sm:px-[4vw] mt-12">
+          <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
+            <div className="flex flex-col lg:flex-row items-start gap-8">
+              {/* Left: description */}
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-1.5 text-[0.75rem] font-semibold text-fg-muted uppercase tracking-wider">
+                  <Calculator className="w-3.5 h-3.5" />
+                  Kalkulator Penghasilan
+                </div>
+                <h2 className="text-xl sm:text-2xl font-semibold text-fg leading-snug">
+                  Simulasi Cuan dari Views-mu
+                </h2>
+                <p className="text-[0.875rem] text-fg-muted leading-relaxed max-w-sm">
+                  Tiap 1.000 views di TikTok / Reels menghasilkan komisi otomatis. Geser slider untuk proyeksi dari 1 klip video.
+                </p>
+
+                {/* View presets */}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {[
+                    { label: '25K', value: 25000 },
+                    { label: '50K FYP', value: 50000 },
+                    { label: '150K Viral', value: 150000 },
+                    { label: '500K Mega', value: 500000 },
+                  ].map((p) => (
+                    <button
+                      key={p.value}
+                      onClick={() => setViewsEstimate(p.value)}
+                      className={`px-3 py-1 rounded-full text-[0.8125rem] font-medium transition-all border ${
+                        viewsEstimate === p.value
+                          ? 'bg-white text-black border-white font-bold'
+                          : 'border-[var(--line)] text-fg-muted hover:text-fg hover:border-[var(--line-hover)]'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right: slider + result */}
+              <div className="w-full lg:max-w-sm bg-[var(--surface-2)] rounded-2xl p-5 border border-[var(--line)] space-y-5">
+                <div>
+                  <div className="flex justify-between items-center text-[0.8125rem] mb-2">
+                    <span className="text-fg-muted">Estimasi Views:</span>
+                    <span className="text-fg font-mono font-bold">
+                      {viewsEstimate.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5000"
+                    max="1000000"
+                    step="5000"
+                    value={viewsEstimate}
+                    onChange={(e) => setViewsEstimate(Number(e.target.value))}
+                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-[var(--surface-3)] accent-[var(--accent)]"
+                  />
+                </div>
+
+                <div className="rounded-xl bg-[var(--surface)] border border-[var(--line)] p-4 text-center space-y-0.5">
+                  <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-fg-subtle">
+                    Estimasi Komisi
                   </span>
+                  <div className="text-3xl font-black text-[var(--cpm)] font-mono tracking-tight">
+                    Rp {estimatedEarnings.toLocaleString('id-ID')}
+                  </div>
+                  {isCapped && (
+                    <p className="text-[0.6875rem] text-amber-400 pt-0.5">
+                      *Maks. Rp {maxPayoutPerClip.toLocaleString('id-ID')} per klip
+                    </p>
+                  )}
                 </div>
-                <input
-                  type="range"
-                  min="5000"
-                  max="1000000"
-                  step="5000"
-                  value={viewsEstimate}
-                  onChange={(e) => setViewsEstimate(Number(e.target.value))}
-                  className="w-full h-2 bg-[#420D4B] rounded-lg appearance-none cursor-pointer accent-white"
-                />
-              </div>
 
-              {/* Earnings Result */}
-              <div className="p-4 rounded-xl bg-[#26073d] border border-[#7B337E]/50 text-center space-y-0.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#F5D5E0]/60">
-                  Estimasi Komisi Klip
-                </span>
-                <div className="text-3xl font-black text-emerald-400 font-mono tracking-tight">
-                  Rp {estimatedEarnings.toLocaleString('id-ID')}
-                </div>
-                {isCapped && (
-                  <p className="text-[10px] text-amber-300 font-medium pt-1">
-                    *Maksimal Rp {maxPayoutPerClip.toLocaleString('id-ID')} sesuai limit per klip episode
-                  </p>
-                )}
+                <button
+                  onClick={() => document.getElementById('campaigns-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="w-full h-10 rounded-full font-semibold text-[0.875rem] bg-white text-black hover:bg-white/90 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  Pilih Episode Sekarang
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
+            </div>
+          </div>
+        </div>
 
-              <button
-                onClick={() => {
-                  const target = document.getElementById('campaigns-section');
-                  if (target) target.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="w-full py-2.5 rounded-xl font-bold text-xs bg-white hover:bg-white/90 text-black shadow-md transition-all flex items-center justify-center gap-1.5"
+        {/* ============================================================
+            3-STEP GUIDE
+            ============================================================ */}
+        <div className="w-full px-5 sm:px-[4vw] mt-10 mb-4">
+          <h2 className="text-lg font-semibold text-fg mb-4">Cara Kerja klipzz.vid</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              {
+                n: '1',
+                title: 'Pilih Episode & Creator Kit',
+                desc: 'Tonton cuplikan podcast, unduh footage resolusi asli, dan cek momen punchline lucu.',
+              },
+              {
+                n: '2',
+                title: 'Edit & Upload ke TikTok / Reels',
+                desc: 'Potong 30–60 detik vertikal 9:16, pasang subtitle rapi, dan sertakan hashtag wajib di caption.',
+              },
+              {
+                n: '3',
+                title: 'Setor Link & Cairkan Komisi',
+                desc: 'Tempel link video. Sistem otomatis menghitung views dan komisi masuk ke saldo dompetmu.',
+              },
+            ].map((s) => (
+              <div
+                key={s.n}
+                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-5 space-y-2"
               >
-                <span>Pilih Episode & Gunting Sekarang</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+                <span className="w-7 h-7 rounded-lg bg-[var(--surface-2)] flex items-center justify-center text-xs font-bold text-fg border border-[var(--line)]">
+                  {s.n}
+                </span>
+                <h4 className="text-[0.875rem] font-semibold text-fg">{s.title}</h4>
+                <p className="text-[0.8125rem] text-fg-muted leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
           </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* SIMPLE 3-STEP GUIDE (ALUR GUNTING KLIP)                                  */}
-        {/* ========================================================================= */}
-        <section className="border-t border-[#7B337E]/20 pt-8 space-y-6">
-          <div className="text-center max-w-md mx-auto space-y-1">
-            <h2 className="text-lg sm:text-xl font-bold text-white">
-              Cara Kerja klipzz.vid
-            </h2>
-            <p className="text-xs text-[#F5D5E0]/60">
-              3 langkah cepat untuk mulai menghasilkan komisi dari konten komedi.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-[#26073d]/50 border border-[#7B337E]/30 space-y-2">
-              <span className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-white">
-                1
-              </span>
-              <h4 className="text-xs font-bold text-white">Pilih Episode & Creator Kit</h4>
-              <p className="text-[11px] text-[#F5D5E0]/70 leading-relaxed">
-                Tonton cuplikan podcast DiPanggil ke Ruangan, unduh video footage resolusi asli, dan cek menit-menit punchline lucu.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-[#26073d]/50 border border-[#7B337E]/30 space-y-2">
-              <span className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-white">
-                2
-              </span>
-              <h4 className="text-xs font-bold text-white">Edit & Upload ke TikTok / Reels</h4>
-              <p className="text-[11px] text-[#F5D5E0]/70 leading-relaxed">
-                Potong durasi 30–60 detik vertikal 9:16, pasang subtitle yang rapi, dan sertakan hashtag wajib di caption postingan.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-[#26073d]/50 border border-[#7B337E]/30 space-y-2">
-              <span className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-white">
-                3
-              </span>
-              <h4 className="text-xs font-bold text-white">Setor Link & Cairkan Komisi</h4>
-              <p className="text-[11px] text-[#F5D5E0]/70 leading-relaxed">
-                Tempel link video ke klipzz.vid. Sistem otomatis menghitung views dan komisi langsung masuk ke saldo dompet akunmu.
-              </p>
-            </div>
-          </div>
-        </section>
+        </div>
       </main>
 
       {/* Modals */}
@@ -569,31 +636,21 @@ export default function HomePage() {
         onClose={() => setIsBioModalOpen(false)}
         onAccountVerified={(acc) => setSocialAccounts((prev) => [acc, ...prev])}
       />
-
       <SubmitClipModal
         isOpen={isSubmitModalOpen}
         onClose={() => setIsSubmitModalOpen(false)}
         campaign={selectedCampaign}
         socialAccounts={socialAccounts}
-        onSubmitSuccess={(newSub) => {
-          setSubmissions((prev) => [newSub, ...prev]);
-        }}
+        onSubmitSuccess={(newSub) => setSubmissions((prev) => [newSub, ...prev])}
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
-
       <CreateCampaignModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCampaignCreated={(camp) => {
-          setCampaigns((prev) => [camp, ...prev]);
-        }}
+        onCampaignCreated={(camp) => setCampaigns((prev) => [camp, ...prev])}
       />
-
-      {/* Mobile Bottom App Navigation */}
       <BottomNav
-        onOpenSubmit={() => {
-          if (campaigns.length > 0) openSubmitFor(campaigns[0]);
-        }}
+        onOpenSubmit={() => { if (campaigns.length > 0) openSubmitFor(campaigns[0]); }}
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
     </div>

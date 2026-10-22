@@ -2,61 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =====================================================
+   KLIPZZ.VID DESIGN SYSTEM — TernakKlip-inspired
+   Palet: Hitam/gelap netral, accent ungu/lavender
+   ===================================================== */
 :root {
-  --color-obsidian: #210635;
-  --color-surface: #420D4B;
-  --color-royal: #7B337E;
-  --color-slate: #6667AB;
-  --color-pink: #F5D5E0;
+  /* Background layers */
+  --bg: #0d0d0d;
+  --surface: #141414;
+  --surface-2: #1e1e1e;
+  --surface-3: #272727;
+
+  /* Foreground */
+  --fg: #f5f5f5;
+  --fg-muted: rgba(245,245,245,0.65);
+  --fg-subtle: rgba(245,245,245,0.38);
+
+  /* Borders */
+  --line: rgba(255,255,255,0.09);
+  --line-hover: rgba(255,255,255,0.18);
+
+  /* Accent (brand klipzz – lavender-purple) */
+  --accent: #7c5af3;
+  --accent-hover: #6b48e8;
+  --accent-fg: #fff;
+  --accent-soft: rgba(124,90,243,0.15);
+  --accent-line: rgba(124,90,243,0.4);
+
+  /* CPM badge */
+  --cpm: #34d399;
+  --cpm-soft: rgba(52,211,153,0.1);
+  --cpm-line: rgba(52,211,153,0.3);
+}
+
+/* =====================================================
+   BASE RESET
+   ===================================================== */
+html {
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-color: #210635;
-  color: #F5D5E0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 
-/* Glassmorphism helpers */
-.glass-panel {
-  background: rgba(66, 13, 75, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(123, 51, 126, 0.35);
+/* =====================================================
+   UTILITY HELPERS
+   ===================================================== */
+.surface-app {
+  background-color: var(--bg);
+  color: var(--fg);
 }
 
-.glass-panel-hover {
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+.bg-bg    { background-color: var(--bg); }
+.bg-surface { background-color: var(--surface); }
+.bg-surface-2 { background-color: var(--surface-2); }
+.bg-surface-3 { background-color: var(--surface-3); }
+
+.text-fg       { color: var(--fg); }
+.text-fg-muted { color: var(--fg-muted); }
+.text-fg-subtle{ color: var(--fg-subtle); }
+
+.border-line       { border-color: var(--line); }
+.border-line-hover { border-color: var(--line-hover); }
+
+.bg-accent      { background-color: var(--accent); }
+.bg-accent-hover{ background-color: var(--accent-hover); }
+.text-accent    { color: var(--accent); }
+.text-accent-fg { color: var(--accent-fg); }
+.bg-accent-soft { background-color: var(--accent-soft); }
+.border-accent-line { border-color: var(--accent-line); }
+
+.text-cpm       { color: var(--cpm); }
+.bg-cpm-soft    { background-color: var(--cpm-soft); }
+.border-cpm-line{ border-color: var(--cpm-line); }
+
+/* =====================================================
+   CARD COMPONENT
+   ===================================================== */
+.klip-card {
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.klip-card:hover {
+  border-color: var(--accent-line);
 }
 
-.glass-panel-hover:hover {
-  background: rgba(66, 13, 75, 0.9);
-  border-color: rgba(245, 213, 224, 0.4);
-  box-shadow: 0 0 25px -5px rgba(123, 51, 126, 0.45);
-  transform: translateY(-2px);
+/* =====================================================
+   HEADER GLASS BLUR
+   ===================================================== */
+.header-blur {
+  background-color: rgba(13,13,13,0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
 }
 
-.glass-card {
-  background: linear-gradient(180deg, rgba(66, 13, 75, 0.8) 0%, rgba(33, 6, 53, 0.9) 100%);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(102, 103, 171, 0.25);
-}
+/* =====================================================
+   SCROLLBAR
+   ===================================================== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-/* Custom scrollbars */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+/* Hide scrollbar but keep scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-::-webkit-scrollbar-track {
-  background: #210635;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #7B337E;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #6667AB;
-}
+/* =====================================================
+   SELECTION
+   ===================================================== */
+::selection { background-color: var(--accent); color: #fff; }
