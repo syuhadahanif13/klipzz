@@ -165,7 +165,7 @@ export default function CampaignDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user?.id]);
 
   if (isLoading) {
     return (
@@ -226,8 +226,8 @@ export default function CampaignDetailPage() {
   };
 
   const videoEmbedId = extractYoutubeId(
-    targetCampaign.source_youtube_url,
-    targetCampaign.youtube_video_id || 'DHiELGxnAS4'
+    targetCampaign?.source_youtube_url,
+    targetCampaign?.youtube_video_id || 'DHiELGxnAS4'
   );
 
   const claimedPercentage = rewardPool > 0
@@ -345,7 +345,7 @@ export default function CampaignDetailPage() {
                   <span>Video Podcast Asli (Source Footage)</span>
                 </h2>
                 <a
-                  href={targetCampaign.source_youtube_url}
+                  href={targetCampaign?.source_youtube_url || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs font-bold text-[#6667AB] hover:text-[#F5D5E0] flex items-center gap-1"
@@ -360,7 +360,7 @@ export default function CampaignDetailPage() {
                 <iframe
                   className="w-full h-full"
                   src={`https://www.youtube.com/embed/${videoEmbedId}${activeTimestamp ? `?start=${activeTimestamp}&autoplay=1` : ''}`}
-                  title={targetCampaign.title}
+                  title={targetCampaign?.title || 'Video Campaign'}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
@@ -372,7 +372,7 @@ export default function CampaignDetailPage() {
                   Resolusi Asli: 1080p 60fps • Format Vertikal 9:16 disarankan
                 </span>
                 <a
-                  href={`https://en.savefrom.net/20/#url=${encodeURIComponent(targetCampaign.source_youtube_url)}`}
+                  href={`https://en.savefrom.net/20/#url=${encodeURIComponent(targetCampaign?.source_youtube_url || '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#420D4B] hover:bg-[#7B337E] text-xs font-semibold text-[#F5D5E0] border border-[#7B337E]/50 transition-colors"

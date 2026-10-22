@@ -46,12 +46,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .maybeSingle();
 
           if (profile) {
+            const roleVal: UserRole = profile.role === 'admin' ? 'admin' : profile.role === 'brand' ? 'brand' : 'clipper';
             const userObj: UserProfile = {
               id: profile.id,
               username: profile.username || 'user',
               full_name: profile.full_name || profile.username || 'Kreator',
               avatar_url: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-              role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
+              role: roleVal,
               balance: Number(profile.balance || 0),
               total_earned: Number(profile.total_earned || 0),
             };
@@ -64,13 +65,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const meta = session.user.user_metadata || {};
             const username = meta.username || session.user.email?.split('@')[0] || 'clipper';
             const fullName = meta.full_name || username;
-            const role = (meta.role === 'admin' ? 'admin' : 'clipper') as UserRole;
+            const roleVal: UserRole = meta.role === 'admin' ? 'admin' : meta.role === 'brand' ? 'brand' : 'clipper';
             const fallbackObj: UserProfile = {
               id: session.user.id,
               username,
               full_name: fullName,
               avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-              role,
+              role: roleVal,
               balance: 0,
               total_earned: 0,
             };
@@ -99,12 +100,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle();
 
         if (profile) {
+          const roleVal: UserRole = profile.role === 'admin' ? 'admin' : profile.role === 'brand' ? 'brand' : 'clipper';
           const userObj: UserProfile = {
             id: profile.id,
             username: profile.username || 'user',
             full_name: profile.full_name || profile.username || 'Kreator',
             avatar_url: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-            role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
+            role: roleVal,
             balance: Number(profile.balance || 0),
             total_earned: Number(profile.total_earned || 0),
           };
@@ -112,31 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (typeof window !== 'undefined') {
             localStorage.setItem('klipzz_user_session', JSON.stringify(userObj));
           }
-        } else {
-          // Profile belum ada di public.profiles saat auth change, insert otomatis
-          const meta = session.user.user_metadata || {};
-          const username = meta.username || session.user.email?.split('@')[0] || 'clipper';
-          const fullName = meta.full_name || username;
-          const role = (meta.role === 'admin' ? 'admin' : 'clipper') as UserRole;
-          const fallbackObj: UserProfile = {
-            id: session.user.id,
-            username,
-            full_name: fullName,
-            avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-            role,
-            balance: 0,
-            total_earned: 0,
-          };
-          await supabase.from('profiles').upsert(fallbackObj);
-          setUser(fallbackObj);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('klipzz_user_session', JSON.stringify(fallbackObj));
-          }
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('klipzz_user_session');
         }
       }
     });
@@ -188,12 +165,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle();
 
         if (profile) {
+          const roleVal: UserRole = profile.role === 'admin' ? 'admin' : profile.role === 'brand' ? 'brand' : 'clipper';
           const userObj: UserProfile = {
             id: profile.id,
             username: profile.username || 'user',
             full_name: profile.full_name || profile.username || 'Kreator',
             avatar_url: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-            role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
+            role: roleVal,
             balance: Number(profile.balance) || 0,
             total_earned: Number(profile.total_earned) || 0,
           };

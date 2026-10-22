@@ -26,7 +26,8 @@ export function SubmitClipModal({
 }: SubmitClipModalProps) {
   const { user } = useAuth();
   const [postUrl, setPostUrl] = useState('');
-  const verifiedAccounts = socialAccounts.filter((a) => a.is_verified);
+  const accountsList = Array.isArray(socialAccounts) ? socialAccounts : [];
+  const verifiedAccounts = accountsList.filter((a) => a && a.is_verified);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
