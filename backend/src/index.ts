@@ -3,7 +3,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import apiRoutes from './routes/api.js';
 
-dotenv.config();
+// Hanya load .env saat development — di production, env var di-inject langsung oleh platform (Coolify/Railway)
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 const app = express();
 const PORT = process.env.PORT || 4000;

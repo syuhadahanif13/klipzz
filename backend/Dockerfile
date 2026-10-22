@@ -13,5 +13,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 4000
+# Jangan hardcode port — backend pakai process.env.PORT di index.ts
+# Coolify/Railway/platform lain akan inject PORT lewat env var
+EXPOSE ${PORT:-4000}
 CMD ["node", "dist/index.js"]
