@@ -208,7 +208,7 @@ export function SubmitClipModal({
               >
                 {verifiedAccounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
-                    {acc.platform.toUpperCase()} - {acc.handle} ({acc.follower_count.toLocaleString()} followers)
+                    {acc.platform.toUpperCase()} - {acc.handle} ({Number(acc.follower_count || 0).toLocaleString('id-ID')} followers)
                   </option>
                 ))}
               </select>
@@ -239,7 +239,7 @@ export function SubmitClipModal({
                 Hashtag Wajib di Postingan:
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {campaign.hashtag_requirements.map((tag) => (
+                {(campaign.hashtag_requirements || []).map((tag) => (
                   <span
                     key={tag}
                     className="px-2.5 py-1 rounded-lg bg-[#420D4B] border border-[#6667AB]/40 text-xs font-medium text-[#F5D5E0]"
@@ -257,7 +257,7 @@ export function SubmitClipModal({
             <div className="flex items-center justify-between text-xs p-3 rounded-xl bg-[#420D4B]/40 border border-[#7B337E]/30">
               <span className="text-[#F5D5E0]/70">Tarif Komisi:</span>
               <span className="font-bold text-emerald-400">
-                Rp {campaign.rate_per_1k_views.toLocaleString('id-ID')} / 1.000 Views
+                Rp {Number(campaign.rate_per_1k_views || 0).toLocaleString('id-ID')} / 1.000 Views
               </span>
             </div>
 

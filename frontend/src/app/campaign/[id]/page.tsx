@@ -47,12 +47,12 @@ export default function CampaignDetailPage() {
   const campaignId = (params?.id as string) || '';
   const { user } = useAuth();
 
-  // Cari fallback campaign lokal agar halaman tidak pernah blank saat dimuat
-  const fallbackCamp =
-    MOCK_CAMPAIGNS.find((c) => c.slug === campaignId || c.id === campaignId) || null;
+  // Cari campaign yang cocok dari data lokal agar render langsung siap (0ms)
+  const localCamp =
+    MOCK_CAMPAIGNS.find((c) => c.slug === campaignId || c.id === campaignId) || MOCK_CAMPAIGNS[0];
 
-  const [campaign, setCampaign] = useState<Campaign | null>(fallbackCamp);
-  const [isLoading, setIsLoading] = useState<boolean>(!fallbackCamp);
+  const [campaign, setCampaign] = useState<Campaign>(localCamp);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [notFound, setNotFound] = useState<boolean>(false);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>([]);
@@ -72,10 +72,12 @@ export default function CampaignDetailPage() {
     let isMounted = true;
 
     async function loadRealCampaignData() {
+      if (!campaignId) return;
+
       try {
         let foundCampaign: Campaign | null = null;
 
-        // 1. Coba cari lewat kolom slug
+        // 1. Coba cari lewat kolom slug di Supabase
         const { data: bySlug } = await supabase
           .from('campaigns')
           .select('*')
@@ -97,52 +99,38 @@ export default function CampaignDetailPage() {
           }
         }
 
-        // 3. Fallback ke data lokal jika koneksi Supabase di self-hosted lambat / offline
-        if (!foundCampaign && fallbackCamp) {
-          foundCampaign = fallbackCamp;
-        }
-
+        // 3. Fallback ke data lokal jika koneksi Supabase lambat atau offline di self-hosted
         if (!foundCampaign) {
-          if (isMounted) {
-            setNotFound(true);
-            setIsLoading(false);
+          const matchLocal = MOCK_CAMPAIGNS.find(
+            (c) => c.slug === campaignId || c.id === campaignId
+          );
+          if (matchLocal) {
+            foundCampaign = matchLocal;
           }
-          return;
         }
 
-        if (isMounted) {
+        if (foundCampaign && isMounted) {
           setCampaign(foundCampaign);
           setNotFound(false);
-          setIsLoading(false);
-        }
 
-        // Ambil klip yang sudah disetor khusus untuk campaign ini
-        const { data: dbSubs } = await supabase
-          .from('submissions')
-          .select('*')
-          .eq('campaign_id', foundCampaign.id)
-          .order('created_at', { ascending: false });
+          // Ambil klip yang sudah disetor khusus untuk campaign ini
+          const { data: dbSubs } = await supabase
+            .from('submissions')
+            .select('*')
+            .eq('campaign_id', foundCampaign.id)
+            .order('created_at', { ascending: false });
 
-        if (dbSubs && isMounted) {
-          setCampaignSubmissions(dbSubs as Submission[]);
+          if (dbSubs && isMounted) {
+            setCampaignSubmissions(dbSubs as Submission[]);
+          }
         }
       } catch (err) {
         console.error('Error fetching campaign detail:', err);
-        if (isMounted) {
-          if (fallbackCamp) {
-            setCampaign(fallbackCamp);
-            setNotFound(false);
-          } else {
-            setNotFound(true);
-          }
-          setIsLoading(false);
-        }
       }
     }
 
-    if (campaignId) {
-      loadRealCampaignData();
-    }
+    loadRealCampaignData();
+
     return () => {
       isMounted = false;
     };
@@ -220,16 +208,16 @@ export default function CampaignDetailPage() {
     );
   }
 
-  const targetCampaign = campaign;
+  const targetCampaign = campaign || localCamp;
   const hashtagRequirements =
-    targetCampaign.hashtag_requirements && targetCampaign.hashtag_requirements.length > 0
+    targetCampaign?.hashtag_requirements && Array.isArray(targetCampaign.hashtag_requirements) && targetCampaign.hashtag_requirements.length > 0
       ? targetCampaign.hashtag_requirements
       : ['#DipanggilKeRuangan', '#KlipzzViral'];
-  const rewardPool = Number(targetCampaign.reward_pool) || 25000000;
-  const remainingPool = Number(targetCampaign.remaining_pool) || 16800000;
-  const ratePer1k = Number(targetCampaign.rate_per_1k_views) || 18000;
-  const minViews = Number(targetCampaign.min_views_threshold) || 1000;
-  const maxPayout = Number(targetCampaign.max_payout_per_clip) || 2000000;
+  const rewardPool = Number(targetCampaign?.reward_pool || 0) || 25000000;
+  const remainingPool = Number(targetCampaign?.remaining_pool || 0) || 16800000;
+  const ratePer1k = Number(targetCampaign?.rate_per_1k_views || 0) || 18000;
+  const minViews = Number(targetCampaign?.min_views_threshold || 0) || 1000;
+  const maxPayout = Number(targetCampaign?.max_payout_per_clip || 0) || 2000000;
 
   const handleCopyTags = () => {
     navigator.clipboard.writeText(hashtagRequirements.join(' '));

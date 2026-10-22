@@ -121,7 +121,7 @@ export function BottomNav({ onOpenSubmit, onOpenBioChallenge }: BottomNavProps) 
           <div className="relative">
             {user ? (
               <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#7B337E] to-[#6667AB] flex items-center justify-center text-[10px] font-bold text-white border border-[#F5D5E0]/40">
-                {user.username.slice(0, 1).toUpperCase()}
+                {(user?.username || 'U').slice(0, 1).toUpperCase()}
               </div>
             ) : (
               <User className="w-5 h-5 transition-transform active:scale-90" />

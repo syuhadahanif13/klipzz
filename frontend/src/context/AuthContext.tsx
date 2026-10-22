@@ -67,16 +67,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (profile) {
             const userObj: UserProfile = {
               id: profile.id,
-              username: profile.username,
-              full_name: profile.full_name || profile.username,
+              username: profile.username || 'user',
+              full_name: profile.full_name || profile.username || 'Kreator',
               avatar_url: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
               role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
-              balance: Number(profile.balance) || 0,
-              total_earned: Number(profile.total_earned) || 0,
+              balance: Number(profile.balance || 0),
+              total_earned: Number(profile.total_earned || 0),
             };
             setUser(userObj);
             if (typeof window !== 'undefined') {
               localStorage.setItem('klipzz_user_session', JSON.stringify(userObj));
+            }
+          } else {
+            // Profile belum ada di public.profiles, masukkan otomatis ke Supabase
+            const meta = session.user.user_metadata || {};
+            const username = meta.username || session.user.email?.split('@')[0] || 'clipper';
+            const fullName = meta.full_name || username;
+            const role = (meta.role === 'admin' ? 'admin' : 'clipper') as UserRole;
+            const fallbackObj: UserProfile = {
+              id: session.user.id,
+              username,
+              full_name: fullName,
+              avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+              role,
+              balance: 0,
+              total_earned: 0,
+            };
+            await supabase.from('profiles').upsert(fallbackObj);
+            setUser(fallbackObj);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('klipzz_user_session', JSON.stringify(fallbackObj));
             }
           }
         }
@@ -100,16 +120,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (profile) {
           const userObj: UserProfile = {
             id: profile.id,
-            username: profile.username,
-            full_name: profile.full_name || profile.username,
+            username: profile.username || 'user',
+            full_name: profile.full_name || profile.username || 'Kreator',
             avatar_url: profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
             role: (profile.role === 'admin' ? 'admin' : 'clipper') as UserRole,
-            balance: Number(profile.balance) || 0,
-            total_earned: Number(profile.total_earned) || 0,
+            balance: Number(profile.balance || 0),
+            total_earned: Number(profile.total_earned || 0),
           };
           setUser(userObj);
           if (typeof window !== 'undefined') {
             localStorage.setItem('klipzz_user_session', JSON.stringify(userObj));
+          }
+        } else {
+          // Profile belum ada di public.profiles saat auth change, insert otomatis
+          const meta = session.user.user_metadata || {};
+          const username = meta.username || session.user.email?.split('@')[0] || 'clipper';
+          const fullName = meta.full_name || username;
+          const role = (meta.role === 'admin' ? 'admin' : 'clipper') as UserRole;
+          const fallbackObj: UserProfile = {
+            id: session.user.id,
+            username,
+            full_name: fullName,
+            avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+            role,
+            balance: 0,
+            total_earned: 0,
+          };
+          await supabase.from('profiles').upsert(fallbackObj);
+          setUser(fallbackObj);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('klipzz_user_session', JSON.stringify(fallbackObj));
           }
         }
       } else if (event === 'SIGNED_OUT') {

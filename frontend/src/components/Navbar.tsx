@@ -139,7 +139,7 @@ export function Navbar({
                   <div className="flex flex-col text-right">
                     <span className="text-[9px] text-[#F5D5E0]/60 font-medium leading-none">Dompet</span>
                     <span className="text-xs font-bold text-emerald-400 leading-tight">
-                      Rp {user.balance.toLocaleString('id-ID')}
+                      Rp {Number(user?.balance || 0).toLocaleString('id-ID')}
                     </span>
                   </div>
                 </Link>
@@ -152,7 +152,7 @@ export function Navbar({
                 <ShieldCheck className="w-3.5 h-3.5 text-[#6667AB]" />
                 <span className="hidden sm:inline">Role:</span>
                 <span className={`capitalize font-bold ${isAdmin ? 'text-amber-400' : 'text-[#F5D5E0]'}`}>
-                  {user.role}
+                  {user?.role || 'clipper'}
                 </span>
               </div>
 
@@ -163,8 +163,8 @@ export function Navbar({
                   className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-[#420D4B]/60 transition-colors"
                 >
                   <img
-                    src={user.avatar_url}
-                    alt={user.full_name}
+                    src={user?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'}
+                    alt={user?.full_name || user?.username || 'User'}
                     className="w-9 h-9 rounded-xl border border-[#7B337E]/60 object-cover"
                   />
                   <ChevronDown className="w-3.5 h-3.5 text-[#F5D5E0]/60" />
@@ -174,10 +174,10 @@ export function Navbar({
                   <div className="absolute right-0 mt-2 w-48 glass-card rounded-2xl p-2 border border-[#7B337E]/50 shadow-moon-glow space-y-1 z-50">
                     <div className="px-3 py-2 border-b border-[#7B337E]/30">
                       <span className="font-bold text-xs text-[#F5D5E0] block truncate">
-                        {user.full_name}
+                        {user?.full_name || user?.username || 'Kreator'}
                       </span>
                       <span className="text-[10px] text-[#6667AB] block truncate">
-                        @{user.username} • <span className="capitalize text-amber-300 font-semibold">{user.role}</span>
+                        @{user?.username || 'user'} • <span className="capitalize text-amber-300 font-semibold">{user?.role || 'clipper'}</span>
                       </span>
                     </div>
 
