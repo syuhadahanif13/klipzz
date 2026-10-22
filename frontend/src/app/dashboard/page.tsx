@@ -23,10 +23,6 @@ import { BioChallengeModal } from '../../components/BioChallengeModal';
 import { CreateCampaignModal } from '../../components/CreateCampaignModal';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
-import {
-  MOCK_SOCIAL_ACCOUNTS,
-  MOCK_SUBMISSIONS,
-} from '../../data/mockData';
 import { SocialAccount, Submission } from '../../types';
 
 export default function DashboardPage() {

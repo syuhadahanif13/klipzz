@@ -26,18 +26,16 @@ import { SubmitClipModal } from '../components/SubmitClipModal';
 import { CreateCampaignModal } from '../components/CreateCampaignModal';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import {
-  MOCK_CAMPAIGNS,
-  MOCK_SOCIAL_ACCOUNTS,
-  MOCK_SUBMISSIONS,
-} from '../data/mockData';
 import { Campaign, SocialAccount, Submission } from '../types';
 
 export default function HomePage() {
   const { user } = useAuth();
-  const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState<boolean>(true);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>(MOCK_SUBMISSIONS);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [totalPlatformViews, setTotalPlatformViews] = useState<number>(0);
+  const [totalClippersCount, setTotalClippersCount] = useState<number>(0);
   const [viewsEstimate, setViewsEstimate] = useState<number>(50000);
 
   // Modal states
@@ -49,24 +47,49 @@ export default function HomePage() {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Load live campaigns from Supabase
+  // Load live campaigns & metrics from Supabase
   useEffect(() => {
-    async function fetchCampaigns() {
+    async function fetchLivePlatformData() {
+      setIsLoadingCampaigns(true);
       try {
-        const { data, error } = await supabase
+        // 1. Fetch live active campaigns
+        const { data: dbCampaigns, error: campErr } = await supabase
           .from('campaigns')
           .select('*')
           .neq('status', 'draft')
           .order('created_at', { ascending: false });
 
-        if (data && data.length > 0) {
-          setCampaigns(data as Campaign[]);
+        if (dbCampaigns) {
+          setCampaigns(dbCampaigns as Campaign[]);
+        }
+
+        // 2. Fetch live submissions metrics
+        const { data: dbSubs } = await supabase
+          .from('submissions')
+          .select('id, current_views, earnings, status');
+
+        if (dbSubs) {
+          setSubmissions(dbSubs as Submission[]);
+          const sumViews = dbSubs.reduce((acc, s) => acc + (Number(s.current_views) || 0), 0);
+          setTotalPlatformViews(sumViews);
+        }
+
+        // 3. Fetch total registered clippers count
+        const { count: clippersCount } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'clipper');
+
+        if (clippersCount !== null) {
+          setTotalClippersCount(clippersCount);
         }
       } catch (e) {
-        console.warn('Using fallback campaigns data:', e);
+        console.error('Error fetching live platform data:', e);
+      } finally {
+        setIsLoadingCampaigns(false);
       }
     }
-    fetchCampaigns();
+    fetchLivePlatformData();
   }, []);
 
   // Fetch social accounts for logged-in user
@@ -187,25 +210,25 @@ export default function HomePage() {
             <div>
               <span className="text-xs text-[#F5D5E0]/60 font-medium block">Total Reward Pool</span>
               <span className="text-lg sm:text-2xl font-black text-[#F5D5E0] tracking-tight">
-                Rp 70.000.000
+                Rp {campaigns.reduce((acc, c) => acc + (Number(c.reward_pool) || 0), 0).toLocaleString('id-ID')}
               </span>
             </div>
             <div>
               <span className="text-xs text-[#F5D5E0]/60 font-medium block">Komisi Dicairkan</span>
               <span className="text-lg sm:text-2xl font-black text-emerald-400 tracking-tight">
-                Rp 20.650.000
+                Rp {Math.max(0, campaigns.reduce((acc, c) => acc + ((Number(c.reward_pool) || 0) - (Number(c.remaining_pool) || 0)), 0)).toLocaleString('id-ID')}
               </span>
             </div>
             <div>
               <span className="text-xs text-[#F5D5E0]/60 font-medium block">Total Views Klip</span>
               <span className="text-lg sm:text-2xl font-black text-[#6667AB] tracking-tight">
-                2.84M+ Views
+                {totalPlatformViews > 0 ? `${totalPlatformViews.toLocaleString('id-ID')} Views` : 'Real-time Sync'}
               </span>
             </div>
             <div>
               <span className="text-xs text-[#F5D5E0]/60 font-medium block">Clipper Terdaftar</span>
               <span className="text-lg sm:text-2xl font-black text-[#F5D5E0] tracking-tight">
-                1.420+ Kreator
+                {totalClippersCount > 0 ? `${totalClippersCount} Kreator` : 'Verified Supabase'}
               </span>
             </div>
           </div>
@@ -332,111 +355,134 @@ export default function HomePage() {
           </div>
 
           {/* Campaign Grid Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-            {filteredCampaigns.map((camp) => {
-              const claimedPercentage = Math.round(
-                ((camp.reward_pool - camp.remaining_pool) / camp.reward_pool) * 100
-              );
-
-              return (
-                <div
-                  key={camp.id}
-                  className="glass-card glass-panel-hover rounded-2xl p-5 border border-[#7B337E]/40 flex flex-col justify-between space-y-4"
-                >
-                  {/* Top Thumbnail & Guest Badge */}
-                  <div className="relative rounded-xl overflow-hidden aspect-video bg-[#210635]">
-                    <img
-                      src={camp.thumbnail_url}
-                      alt={camp.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#210635] via-transparent to-black/40" />
-
-                    {/* Guest Badge */}
-                    <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-[#420D4B]/90 backdrop-blur-md border border-[#7B337E]/60 text-xs font-bold text-[#F5D5E0]">
-                      {camp.episode_guest}
-                    </div>
-
-                    {/* YouTube Watch link */}
-                    <a
-                      href={camp.source_youtube_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="absolute bottom-3 right-3 p-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md text-[#F5D5E0] border border-white/20 transition-all flex items-center gap-1.5 text-xs font-medium"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Tonton di YouTube</span>
-                    </a>
-                  </div>
-
-                  {/* Campaign Title & Description */}
-                  <div className="space-y-2">
-                    <h3 className="text-base sm:text-lg font-bold text-[#F5D5E0] line-clamp-2 hover:text-[#6667AB] transition-colors">
-                      {camp.title}
-                    </h3>
-                    <p className="text-xs text-[#F5D5E0]/70 line-clamp-2">
-                      {camp.description}
-                    </p>
-                  </div>
-
-                  {/* Required Hashtags */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {camp.hashtag_requirements.map((tag) => (
-                      <span
-                        key={tag}
-                        className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#210635] text-[#F5D5E0]/80 border border-[#7B337E]/30"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Budget & Reward Rate Bar */}
-                  <div className="space-y-2 pt-2 border-t border-[#7B337E]/30">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[#F5D5E0]/60">Sisa Reward Pool:</span>
-                      <span className="font-bold text-[#F5D5E0]">
-                        Rp {camp.remaining_pool.toLocaleString('id-ID')} / Rp {camp.reward_pool.toLocaleString('id-ID')}
-                      </span>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full h-2 rounded-full bg-[#210635] overflow-hidden border border-[#7B337E]/30">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] rounded-full transition-all duration-500"
-                        style={{ width: `${claimedPercentage}%` }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="text-[#F5D5E0]/60">Tarif per 1k views:</span>
-                      <span className="font-extrabold text-emerald-400">
-                        Rp {camp.rate_per_1k_views.toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="grid grid-cols-2 gap-2 pt-2">
-                    <Link
-                      href={`/campaign/${camp.slug || camp.id}`}
-                      className="py-2.5 px-3 rounded-xl text-center text-xs font-semibold bg-[#210635] hover:bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/40 transition-colors"
-                    >
-                      Creator Kit & Detail
-                    </Link>
-
-                    <button
-                      onClick={() => openSubmitFor(camp)}
-                      className="py-2.5 px-3 rounded-xl text-center text-xs font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5"
-                    >
-                      <Scissors className="w-3.5 h-3.5 -rotate-45" />
-                      <span>Submit Klip</span>
-                    </button>
-                  </div>
+          {isLoadingCampaigns ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-4 animate-pulse">
+                  <div className="aspect-video rounded-xl bg-[#420D4B]/50" />
+                  <div className="h-5 bg-[#420D4B]/60 rounded-md w-3/4" />
+                  <div className="h-4 bg-[#420D4B]/40 rounded-md w-full" />
+                  <div className="h-10 bg-[#420D4B]/40 rounded-xl" />
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : filteredCampaigns.length === 0 ? (
+            <div className="p-12 text-center rounded-2xl glass-card border border-[#7B337E]/40 space-y-3">
+              <Flame className="w-10 h-10 text-[#6667AB] mx-auto" />
+              <h3 className="text-lg font-bold text-[#F5D5E0]">Tidak Ada Campaign</h3>
+              <p className="text-xs text-[#F5D5E0]/70 max-w-sm mx-auto">
+                {searchQuery
+                  ? `Tidak ada campaign yang cocok dengan pencarian "${searchQuery}".`
+                  : 'Belum ada campaign aktif di sistem saat ini.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              {filteredCampaigns.map((camp) => {
+                const pool = Number(camp.reward_pool) || 1;
+                const rem = Number(camp.remaining_pool) || 0;
+                const claimedPercentage = Math.min(100, Math.max(0, Math.round(((pool - rem) / pool) * 100)));
+
+                return (
+                  <div
+                    key={camp.id}
+                    className="glass-card glass-panel-hover rounded-2xl p-5 border border-[#7B337E]/40 flex flex-col justify-between space-y-4"
+                  >
+                    {/* Top Thumbnail & Guest Badge */}
+                    <div className="relative rounded-xl overflow-hidden aspect-video bg-[#210635]">
+                      <img
+                        src={camp.thumbnail_url}
+                        alt={camp.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#210635] via-transparent to-black/40" />
+
+                      {/* Guest Badge */}
+                      <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-[#420D4B]/90 backdrop-blur-md border border-[#7B337E]/60 text-xs font-bold text-[#F5D5E0]">
+                        {camp.episode_guest}
+                      </div>
+
+                      {/* YouTube Watch link */}
+                      <a
+                        href={camp.source_youtube_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute bottom-3 right-3 p-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md text-[#F5D5E0] border border-white/20 transition-all flex items-center gap-1.5 text-xs font-medium"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Tonton di YouTube</span>
+                      </a>
+                    </div>
+
+                    {/* Campaign Title & Description */}
+                    <div className="space-y-2">
+                      <h3 className="text-base sm:text-lg font-bold text-[#F5D5E0] line-clamp-2 hover:text-[#6667AB] transition-colors">
+                        {camp.title}
+                      </h3>
+                      <p className="text-xs text-[#F5D5E0]/70 line-clamp-2">
+                        {camp.description}
+                      </p>
+                    </div>
+
+                    {/* Required Hashtags */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {(camp.hashtag_requirements || []).map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#210635] text-[#F5D5E0]/80 border border-[#7B337E]/30"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Budget & Reward Rate Bar */}
+                    <div className="space-y-2 pt-2 border-t border-[#7B337E]/30">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#F5D5E0]/60">Sisa Reward Pool:</span>
+                        <span className="font-bold text-[#F5D5E0]">
+                          Rp {rem.toLocaleString('id-ID')} / Rp {pool.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full h-2 rounded-full bg-[#210635] overflow-hidden border border-[#7B337E]/30">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] rounded-full transition-all duration-500"
+                          style={{ width: `${claimedPercentage}%` }}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <span className="text-[#F5D5E0]/60">Tarif per 1k views:</span>
+                        <span className="font-extrabold text-emerald-400">
+                          Rp {Number(camp.rate_per_1k_views || 0).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      <Link
+                        href={`/campaign/${camp.slug || camp.id}`}
+                        className="py-2.5 px-3 rounded-xl text-center text-xs font-semibold bg-[#210635] hover:bg-[#420D4B] text-[#F5D5E0] border border-[#7B337E]/40 transition-colors"
+                      >
+                        Creator Kit & Detail
+                      </Link>
+
+                      <button
+                        onClick={() => openSubmitFor(camp)}
+                        className="py-2.5 px-3 rounded-xl text-center text-xs font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5"
+                      >
+                        <Scissors className="w-3.5 h-3.5 -rotate-45" />
+                        <span>Submit Klip</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* HOW IT WORKS */}

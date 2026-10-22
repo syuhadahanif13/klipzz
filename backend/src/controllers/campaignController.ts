@@ -44,8 +44,9 @@ export async function getCampaigns(req: Request, res: Response) {
 export async function getCampaignById(req: Request, res: Response) {
   try {
     const { id } = req.params;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-    const { data: campaign, error } = await supabase
+    let query = supabase
       .from('campaigns')
       .select(`
         *,
@@ -60,9 +61,10 @@ export async function getCampaignById(req: Request, res: Response) {
           status,
           clipper:profiles!submissions_clipper_id_fkey(username, avatar_url)
         )
-      `)
-      .eq('id', id)
-      .single();
+      `);
+
+    query = isUuid ? query.eq('id', id) : query.eq('slug', id);
+    const { data: campaign, error } = await query.maybeSingle();
 
     if (error || !campaign) {
       return res.status(404).json({ error: 'Campaign not found' });

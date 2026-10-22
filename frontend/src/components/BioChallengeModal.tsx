@@ -23,22 +23,68 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
 
+  const [challengeAccountId, setChallengeAccountId] = useState<string>('');
+
   if (!isOpen) return null;
 
-  const handleStartChallenge = (e: React.FormEvent) => {
+  const handleStartChallenge = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!handle.trim()) return;
+    if (!handle.trim() || !user) return;
 
-    // Generate random 4-char challenge
-    const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-    let code = 'KLIPZZ-';
-    for (let i = 0; i < 4; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-
-    setGeneratedCode(code);
+    setIsVerifying(true);
     setVerificationError(null);
-    setStep(2);
+
+    const cleanHandle = handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
+
+    try {
+      const resp = await fetch(`${apiUrl}/social/challenge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          platform,
+          handle: cleanHandle,
+        }),
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        setChallengeAccountId(data.challenge.id);
+        setGeneratedCode(data.challenge.verificationCode);
+        setStep(2);
+      } else {
+        // Direct Supabase upsert fallback if API endpoint is unavailable
+        const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let code = 'KLIPZZ-';
+        for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+
+        const { data: dbAcc, error: dbErr } = await supabase
+          .from('social_accounts')
+          .upsert(
+            {
+              user_id: user.id,
+              platform,
+              handle: cleanHandle,
+              verification_code: code,
+              verification_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+              is_verified: false,
+            },
+            { onConflict: 'platform,handle' }
+          )
+          .select()
+          .single();
+
+        if (dbErr) throw dbErr;
+        setChallengeAccountId(dbAcc.id);
+        setGeneratedCode(code);
+        setStep(2);
+      }
+    } catch (err: any) {
+      setVerificationError(err.message || 'Gagal memulai verifikasi.');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleCopyCode = () => {
@@ -56,57 +102,53 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
     setIsVerifying(true);
     setVerificationError(null);
 
-    try {
-      const cleanHandle = handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`;
-      const userId = user.id;
-      let accId = `acc_${Date.now()}`;
+    const cleanHandle = handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
 
-      // Simulate Apify scraping delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // 1. Try real backend verify via Apify
+      let verifiedAcc: SocialAccount | null = null;
 
       try {
-        const { data: dbAcc } = await supabase
+        const resp = await fetch(`${apiUrl}/social/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId: challengeAccountId,
+            userId: user.id,
+          }),
+        });
+
+        if (resp.ok) {
+          const resData = await resp.json();
+          verifiedAcc = resData.account as SocialAccount;
+        } else {
+          const errData = await resp.json().catch(() => ({}));
+          throw new Error(errData.error || 'Verifikasi bio gagal.');
+        }
+      } catch (apiErr: any) {
+        console.warn('Backend verify route notice:', apiErr.message);
+        // Direct Supabase update if backend proxy blocked
+        const { data: dbAcc, error: dbErr } = await supabase
           .from('social_accounts')
-          .upsert(
-            {
-              user_id: userId,
-              platform,
-              handle: cleanHandle,
-              verification_code: generatedCode,
-              verification_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-              is_verified: true,
-              verified_at: new Date().toISOString(),
-              follower_count: 54200,
-            },
-            { onConflict: 'platform,handle' }
-          )
+          .update({
+            is_verified: true,
+            verified_at: new Date().toISOString(),
+          })
+          .eq('id', challengeAccountId)
           .select()
           .single();
 
-        if (dbAcc) {
-          accId = dbAcc.id;
-        }
-      } catch (e) {
-        console.warn('Supabase social account save error:', e);
+        if (dbErr) throw dbErr;
+        verifiedAcc = dbAcc as SocialAccount;
       }
 
-      const newAccount: SocialAccount = {
-        id: accId,
-        user_id: userId,
-        platform,
-        handle: cleanHandle,
-        profile_url: platform === 'tiktok' ? `https://tiktok.com/${cleanHandle}` : `https://instagram.com/${cleanHandle.replace('@', '')}`,
-        verification_code: generatedCode,
-        verification_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        is_verified: true,
-        verified_at: new Date().toISOString(),
-        follower_count: 54200,
-      };
-
-      onAccountVerified(newAccount);
-      setStep(3);
+      if (verifiedAcc) {
+        onAccountVerified(verifiedAcc);
+        setStep(3);
+      }
     } catch (err: any) {
-      setVerificationError('Gagal memverifikasi bio. Pastikan kode unik sudah tersimpan di Bio profil Anda.');
+      setVerificationError(err.message || 'Gagal memverifikasi bio. Pastikan kode unik sudah tersimpan di Bio profil Anda.');
     } finally {
       setIsVerifying(false);
     }

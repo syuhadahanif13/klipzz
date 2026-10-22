@@ -22,6 +22,7 @@ import {
   ExternalLink,
   Share2,
   ShieldAlert,
+  Flame,
 } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
 import { BottomNav } from '../../../components/BottomNav';
@@ -30,11 +31,6 @@ import { SubmitClipModal } from '../../../components/SubmitClipModal';
 import { CreateCampaignModal } from '../../../components/CreateCampaignModal';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
-import {
-  MOCK_CAMPAIGNS,
-  MOCK_SOCIAL_ACCOUNTS,
-  MOCK_SUBMISSIONS,
-} from '../../../data/mockData';
 import { Campaign, SocialAccount, Submission } from '../../../types';
 
 function extractYoutubeId(url?: string, defaultId?: string): string {
@@ -47,24 +43,16 @@ function extractYoutubeId(url?: string, defaultId?: string): string {
 export default function CampaignDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const campaignId = (params?.id as string) || 'c1111111-1111-1111-1111-111111111111';
+  const campaignId = (params?.id as string) || '';
   const { user } = useAuth();
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(campaignId);
 
-  // Match local mock data by slug or id for instant 0ms render
-  const initialMatch =
-    MOCK_CAMPAIGNS.find((c) => (isUuid ? c.id === campaignId : c.slug === campaignId)) ||
-    MOCK_CAMPAIGNS.find((c) => c.id === campaignId || c.slug === campaignId) ||
-    MOCK_CAMPAIGNS[0];
-
-  const [campaign, setCampaign] = useState<Campaign>(initialMatch);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [notFound, setNotFound] = useState<boolean>(false);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
-  const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>(() => {
-    return MOCK_SUBMISSIONS.filter(
-      (s) => s.campaign_id === initialMatch.id || (initialMatch.slug && s.campaign_id === initialMatch.slug)
-    );
-  });
+  const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>([]);
 
   // Modals
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
@@ -79,55 +67,41 @@ export default function CampaignDetailPage() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadCampaignData() {
-      // 1. Immediately match local data
-      const localMatch =
-        MOCK_CAMPAIGNS.find((c) => (isUuid ? c.id === campaignId : c.slug === campaignId)) ||
-        MOCK_CAMPAIGNS.find((c) => c.id === campaignId || c.slug === campaignId) ||
-        MOCK_CAMPAIGNS[0];
-
-      if (isMounted) {
-        setCampaign(localMatch);
-      }
+    async function loadRealCampaignData() {
+      setIsLoading(true);
+      setNotFound(false);
 
       try {
-        // 2. Fetch live campaign from Supabase (by UUID or slug)
+        // Fetch live campaign from Supabase (by UUID or slug)
         const query = supabase.from('campaigns').select('*');
         const { data: dbCampaign, error: campErr } = isUuid
           ? await query.eq('id', campaignId).maybeSingle()
           : await query.eq('slug', campaignId).maybeSingle();
 
-        let resolvedCampaignId = localMatch.id;
-
-        if (dbCampaign && isMounted) {
-          resolvedCampaignId = dbCampaign.id;
-          setCampaign((prev) => ({
-            ...prev,
-            ...dbCampaign,
-            hashtag_requirements:
-              dbCampaign.hashtag_requirements && dbCampaign.hashtag_requirements.length > 0
-                ? dbCampaign.hashtag_requirements
-                : prev.hashtag_requirements,
-            guidelines:
-              dbCampaign.guidelines && dbCampaign.guidelines.length > 0
-                ? dbCampaign.guidelines
-                : prev.guidelines,
-          }));
-        }
-
-        // 3. Fetch submissions for this campaign using resolved UUID
-        if (resolvedCampaignId) {
-          const { data: dbSubs } = await supabase
-            .from('submissions')
-            .select('*')
-            .eq('campaign_id', resolvedCampaignId);
-
-          if (dbSubs && dbSubs.length > 0 && isMounted) {
-            setCampaignSubmissions(dbSubs as Submission[]);
+        if (campErr || !dbCampaign) {
+          if (isMounted) {
+            setNotFound(true);
+            setIsLoading(false);
           }
+          return;
         }
 
-        // 4. Fetch user's social accounts ONLY if user is logged in
+        if (isMounted) {
+          setCampaign(dbCampaign as Campaign);
+        }
+
+        // Fetch real submissions for this campaign from Supabase
+        const { data: dbSubs } = await supabase
+          .from('submissions')
+          .select('*')
+          .eq('campaign_id', dbCampaign.id)
+          .order('created_at', { ascending: false });
+
+        if (dbSubs && isMounted) {
+          setCampaignSubmissions(dbSubs as Submission[]);
+        }
+
+        // Fetch user's social accounts ONLY if user is logged in
         if (user) {
           const { data: userAccs } = await supabase
             .from('social_accounts')
@@ -143,18 +117,63 @@ export default function CampaignDetailPage() {
           }
         }
       } catch (err) {
-        console.warn('Using instant fallback campaign data:', err);
+        console.error('Error fetching campaign from Supabase:', err);
+        if (isMounted) setNotFound(true);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     }
 
-    loadCampaignData();
+    if (campaignId) {
+      loadRealCampaignData();
+    }
     return () => {
       isMounted = false;
     };
   }, [campaignId, isUuid, user]);
 
-  // Safe fallback getters so UI never crashes or goes blank
-  const targetCampaign = campaign || initialMatch;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
+        <Navbar />
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-pulse">
+          <div className="h-6 w-36 bg-[#420D4B]/60 rounded-xl" />
+          <div className="h-72 rounded-3xl bg-[#420D4B]/40 border border-[#7B337E]/40" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 h-96 rounded-2xl bg-[#420D4B]/30" />
+            <div className="h-96 rounded-2xl bg-[#420D4B]/30" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (notFound || !campaign) {
+    return (
+      <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
+        <Navbar />
+        <main className="flex-1 max-w-lg w-full mx-auto px-4 flex flex-col items-center justify-center text-center space-y-5 py-24">
+          <div className="w-16 h-16 rounded-2xl bg-[#420D4B] border border-[#7B337E]/60 flex items-center justify-center text-[#6667AB] shadow-moon-glow">
+            <Flame className="w-8 h-8 text-amber-400" />
+          </div>
+          <div className="space-y-1.5">
+            <h1 className="text-2xl font-black text-[#F5D5E0]">Campaign Tidak Ditemukan</h1>
+            <p className="text-xs text-[#F5D5E0]/70 leading-relaxed">
+              Episode campaign yang kamu tuju tidak terdaftar atau link salah. Silakan periksa kembali daftar episode aktif di beranda.
+            </p>
+          </div>
+          <Link
+            href="/"
+            className="py-3 px-6 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow"
+          >
+            Kembali ke Semua Campaign
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  const targetCampaign = campaign;
   const hashtagRequirements =
     targetCampaign.hashtag_requirements && targetCampaign.hashtag_requirements.length > 0
       ? targetCampaign.hashtag_requirements
@@ -509,38 +528,53 @@ export default function CampaignDetailPage() {
                 <span className="text-xs text-[#6667AB] font-semibold">{campaignSubmissions.length} Klip</span>
               </h3>
 
-              <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                {campaignSubmissions.map((sub) => (
-                  <div
-                    key={sub.id}
-                    className="p-3 rounded-xl bg-[#210635]/80 border border-[#7B337E]/30 flex items-center justify-between text-xs"
+              {campaignSubmissions.length === 0 ? (
+                <div className="p-6 text-center rounded-xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-2">
+                  <Scissors className="w-6 h-6 text-[#6667AB] mx-auto -rotate-45" />
+                  <p className="text-xs text-[#F5D5E0]/70">
+                    Belum ada klip yang disetor untuk episode ini.
+                  </p>
+                  <button
+                    onClick={() => setIsSubmitModalOpen(true)}
+                    className="text-xs font-bold text-emerald-400 hover:underline inline-block pt-1"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-[#420D4B] flex items-center justify-center font-bold text-[10px] text-[#F5D5E0] uppercase">
-                        {sub.platform === 'tiktok' ? 'TT' : 'IG'}
-                      </div>
-                      <div>
-                        <span className="font-bold text-[#F5D5E0] block leading-snug">
-                          {Number(sub.current_views || 0).toLocaleString('id-ID')} Views
-                        </span>
-                        <span className="text-[10px] text-emerald-400 font-semibold">
-                          Rp {Number(sub.earnings || 0).toLocaleString('id-ID')}
-                        </span>
-                      </div>
-                    </div>
-
-                    <a
-                      href={sub.post_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors"
-                      title="Buka Video"
+                    Setor Klip Pertama →
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                  {campaignSubmissions.map((sub) => (
+                    <div
+                      key={sub.id}
+                      className="p-3 rounded-xl bg-[#210635]/80 border border-[#7B337E]/30 flex items-center justify-between text-xs"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                ))}
-              </div>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-[#420D4B] flex items-center justify-center font-bold text-[10px] text-[#F5D5E0] uppercase">
+                          {sub.platform === 'tiktok' ? 'TT' : 'IG'}
+                        </div>
+                        <div>
+                          <span className="font-bold text-[#F5D5E0] block leading-snug">
+                            {Number(sub.current_views || 0).toLocaleString('id-ID')} Views
+                          </span>
+                          <span className="text-[10px] text-emerald-400 font-semibold">
+                            Rp {Number(sub.earnings || 0).toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                      </div>
+
+                      <a
+                        href={sub.post_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors"
+                        title="Buka Video"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

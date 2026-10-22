@@ -63,60 +63,57 @@ export function SubmitClipModal({
 
     try {
       const selectedAcc = socialAccounts.find((a) => a.id === selectedAccountId) || verifiedAccounts[0];
-      const simulatedViews = Math.floor(Math.random() * 25000) + 8500;
-      const simulatedLikes = Math.floor(simulatedViews * 0.14);
-      const simulatedEarnings = Math.min(
-        campaign.max_payout_per_clip,
-        (simulatedViews / 1000) * campaign.rate_per_1k_views
-      );
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
+      let createdSubmission: Submission;
 
-      const submissionPayload = {
-        campaign_id: campaign.id,
-        clipper_id: user.id,
-        social_account_id: selectedAcc?.id || null,
-        post_url: postUrl.trim(),
-        platform: isTikTok ? 'tiktok' : 'instagram',
-        caption: `Keseruan episode ${campaign.episode_guest}! ${campaign.hashtag_requirements.join(' ')}`,
-        thumbnail_url: campaign.thumbnail_url,
-        current_views: simulatedViews,
-        current_likes: simulatedLikes,
-        current_comments: Math.floor(simulatedViews * 0.012),
-        current_shares: Math.floor(simulatedViews * 0.038),
-        earnings: simulatedEarnings,
-        status: 'approved',
-        last_scraped_at: new Date().toISOString(),
-      };
-
-      // Try inserting into Supabase
-      let savedSubmissionId = `sub_${Date.now()}`;
       try {
+        const response = await fetch(`${apiUrl}/submissions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: campaign.id,
+            clipperId: user.id,
+            socialAccountId: selectedAcc?.id || null,
+            postUrl: postUrl.trim(),
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          createdSubmission = result.submission;
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || 'Gagal memproses klip melalui server.');
+        }
+      } catch (backendErr: any) {
+        // Direct Supabase insert with actual 0 initial views if backend scraping timed out
+        console.warn('Backend scrape route error, saving directly to Supabase with pending status:', backendErr);
         const { data: dbSub, error: dbErr } = await supabase
           .from('submissions')
-          .insert(submissionPayload)
+          .insert({
+            campaign_id: campaign.id,
+            clipper_id: user.id,
+            social_account_id: selectedAcc?.id || null,
+            post_url: postUrl.trim(),
+            platform: isTikTok ? 'tiktok' : 'instagram',
+            caption: `Episode ${campaign.episode_guest} @DipanggilKeRuangan`,
+            thumbnail_url: campaign.thumbnail_url,
+            current_views: 0,
+            current_likes: 0,
+            current_comments: 0,
+            current_shares: 0,
+            earnings: 0,
+            status: 'pending',
+            last_scraped_at: new Date().toISOString(),
+          })
           .select()
           .single();
 
-        if (dbSub) {
-          savedSubmissionId = dbSub.id;
-        }
-      } catch (insertErr) {
-        console.warn('Could not save to Supabase directly, saving to client state:', insertErr);
+        if (dbErr) throw dbErr;
+        createdSubmission = dbSub as Submission;
       }
 
-      const newSubmission: Submission = {
-        id: savedSubmissionId,
-        ...submissionPayload,
-        created_at: new Date().toISOString(),
-        campaign: {
-          id: campaign.id,
-          title: campaign.title,
-          channel_name: campaign.channel_name,
-          episode_guest: campaign.episode_guest,
-          rate_per_1k_views: campaign.rate_per_1k_views,
-        },
-      } as Submission;
-
-      onSubmitSuccess(newSubmission);
+      onSubmitSuccess(createdSubmission);
       onClose();
       setPostUrl('');
     } catch (err: any) {

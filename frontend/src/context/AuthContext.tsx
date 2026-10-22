@@ -3,7 +3,26 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile, UserRole } from '../types';
-import { DEMO_CLIPPER, DEMO_ADMIN } from '../data/mockData';
+
+const ADMIN_USER: UserProfile = {
+  id: '11111111-1111-1111-1111-111111111111',
+  username: 'admin',
+  full_name: 'Administrator Ruangan',
+  avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+  role: 'admin',
+  balance: 0,
+  total_earned: 0,
+};
+
+const CLIPPER_HANS: UserProfile = {
+  id: '22222222-2222-2222-2222-222222222222',
+  username: 'clipper_hans',
+  full_name: 'Hans Clipper',
+  avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
+  role: 'clipper',
+  balance: 2450000,
+  total_earned: 6850000,
+};
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -117,9 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ) {
         supabase.auth.signInWithPassword({ email: 'admin@klipzz.vid', password }).catch(() => {});
         if (typeof window !== 'undefined') {
-          localStorage.setItem('klipzz_user_session', JSON.stringify(DEMO_ADMIN));
+          localStorage.setItem('klipzz_user_session', JSON.stringify(ADMIN_USER));
         }
-        setUser(DEMO_ADMIN);
+        setUser(ADMIN_USER);
         return { success: true };
       }
 
@@ -130,9 +149,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ) {
         supabase.auth.signInWithPassword({ email: 'clipper_hans@klipzz.vid', password }).catch(() => {});
         if (typeof window !== 'undefined') {
-          localStorage.setItem('klipzz_user_session', JSON.stringify(DEMO_CLIPPER));
+          localStorage.setItem('klipzz_user_session', JSON.stringify(CLIPPER_HANS));
         }
-        setUser(DEMO_CLIPPER);
+        setUser(CLIPPER_HANS);
         return { success: true };
       }
 
