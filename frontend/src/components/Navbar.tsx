@@ -53,64 +53,61 @@ export function Navbar({
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 w-full glass-panel border-b border-[#7B337E]/30 bg-[#210635]/90 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full border-b border-[#7B337E]/20 bg-[#210635]/95 backdrop-blur-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <div className="flex items-center space-x-6">
           <Link href="/" className="flex items-center space-x-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#7B337E] to-[#6667AB] flex items-center justify-center shadow-moon-glow group-hover:scale-105 transition-transform duration-200">
-              <Scissors className="w-5 h-5 text-[#F5D5E0] -rotate-45" />
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#7B337E] to-[#6667AB] flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-200">
+              <Scissors className="w-4 h-4 text-[#F5D5E0] -rotate-45" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black tracking-tight text-[#F5D5E0] flex items-center">
+              <span className="text-lg font-black tracking-tight text-[#F5D5E0] flex items-center">
                 klipzz<span className="text-[#6667AB]">.vid</span>
-              </span>
-              <span className="text-[11px] text-[#F5D5E0]/60 -mt-1 font-medium">
-                Official Clipping Platform
               </span>
             </div>
           </Link>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center space-x-1">
+          <nav className="hidden md:flex items-center space-x-1.5">
             <Link
               href="/"
-              className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 pathname === '/'
-                  ? 'bg-[#7B337E]/30 text-[#F5D5E0] border border-[#7B337E]/50'
-                  : 'text-[#F5D5E0]/70 hover:text-[#F5D5E0] hover:bg-[#420D4B]/40'
+                  ? 'bg-white text-zinc-950 shadow-sm'
+                  : 'text-[#F5D5E0]/70 hover:text-[#F5D5E0] hover:bg-[#420D4B]/50'
               }`}
             >
               <span className="flex items-center gap-1.5">
-                <Flame className="w-4 h-4 text-[#6667AB]" />
-                Campaigns
+                <Flame className="w-3.5 h-3.5 text-[#6667AB]" />
+                Discover
               </span>
             </Link>
 
             <Link
               href="/dashboard"
-              className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 pathname === '/dashboard'
-                  ? 'bg-[#7B337E]/30 text-[#F5D5E0] border border-[#7B337E]/50'
-                  : 'text-[#F5D5E0]/70 hover:text-[#F5D5E0] hover:bg-[#420D4B]/40'
+                  ? 'bg-white text-zinc-950 shadow-sm'
+                  : 'text-[#F5D5E0]/70 hover:text-[#F5D5E0] hover:bg-[#420D4B]/50'
               }`}
             >
               <span className="flex items-center gap-1.5">
-                <Scissors className="w-4 h-4 text-[#7B337E]" />
+                <Scissors className="w-3.5 h-3.5 text-[#7B337E]" />
                 {isAdmin ? 'Admin Portal' : 'Clipper Studio'}
               </span>
             </Link>
 
             <Link
               href="/leaderboard"
-              className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 pathname === '/leaderboard'
-                  ? 'bg-[#7B337E]/30 text-[#F5D5E0] border border-[#7B337E]/50'
-                  : 'text-[#F5D5E0]/70 hover:text-[#F5D5E0] hover:bg-[#420D4B]/40'
+                  ? 'bg-white text-zinc-950 shadow-sm'
+                  : 'text-[#F5D5E0]/70 hover:text-[#F5D5E0] hover:bg-[#420D4B]/50'
               }`}
             >
               <span className="flex items-center gap-1.5">
-                <Trophy className="w-4 h-4 text-amber-400" />
+                <Trophy className="w-3.5 h-3.5 text-amber-400" />
                 Leaderboard
               </span>
             </Link>
@@ -226,14 +223,14 @@ export function Navbar({
             <div className="flex items-center space-x-2 sm:space-x-3">
               <Link
                 href="/login"
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#F5D5E0] hover:bg-[#420D4B]/60 border border-[#7B337E]/40 transition-colors"
+                className="px-4 py-1.5 rounded-full text-xs font-semibold text-[#F5D5E0] hover:bg-[#420D4B]/60 border border-[#7B337E]/40 transition-colors"
               >
                 Masuk
               </Link>
 
               <Link
                 href="/signup"
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity"
+                className="px-4 py-1.5 rounded-full text-xs font-semibold bg-white text-zinc-950 hover:bg-zinc-200 shadow-sm transition-all"
               >
                 Daftar Akun
               </Link>

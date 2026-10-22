@@ -48,6 +48,7 @@ export interface Campaign {
   status: CampaignStatus;
   start_date: string;
   end_date: string;
+  created_at?: string;
   brand?: {
     username: string;
     full_name: string;

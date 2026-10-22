@@ -11,18 +11,14 @@ import {
   CheckCircle2,
   XCircle,
   Play,
-  Wallet,
   Sparkles,
   Copy,
   Check,
   Download,
   Clock,
-  Eye,
-  Heart,
   ExternalLink,
-  Share2,
-  ShieldAlert,
   Flame,
+  ShieldCheck,
 } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
 import { BottomNav } from '../../../components/BottomNav';
@@ -47,24 +43,20 @@ export default function CampaignDetailPage() {
   const campaignId = (params?.id as string) || '';
   const { user } = useAuth();
 
-  // Cari campaign yang cocok dari data lokal agar render langsung siap (0ms)
+  // Cari campaign dari data lokal agar render langsung siap (0ms)
   const localCamp =
     MOCK_CAMPAIGNS.find((c) => c.slug === campaignId || c.id === campaignId) || MOCK_CAMPAIGNS[0];
 
   const [campaign, setCampaign] = useState<Campaign>(localCamp);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [notFound, setNotFound] = useState<boolean>(false);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>([]);
 
-  // State modal aksi
+  // Modals & Interactivity
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [copiedTags, setCopiedTags] = useState(false);
-  const [submitSuccessNotice, setSubmitSuccessNotice] = useState<string | null>(null);
-
-  // Menit video aktif yang diklik
   const [activeTimestamp, setActiveTimestamp] = useState<number | null>(null);
 
   // Ambil data detail campaign dari Supabase
@@ -77,7 +69,7 @@ export default function CampaignDetailPage() {
       try {
         let foundCampaign: Campaign | null = null;
 
-        // 1. Coba cari lewat kolom slug di Supabase
+        // 1. Cari lewat kolom slug di Supabase
         const { data: bySlug } = await supabase
           .from('campaigns')
           .select('*')
@@ -99,7 +91,7 @@ export default function CampaignDetailPage() {
           }
         }
 
-        // 3. Fallback ke data lokal jika koneksi Supabase lambat atau offline di self-hosted
+        // 3. Fallback ke data lokal
         if (!foundCampaign) {
           const matchLocal = MOCK_CAMPAIGNS.find(
             (c) => c.slug === campaignId || c.id === campaignId
@@ -113,7 +105,7 @@ export default function CampaignDetailPage() {
           setCampaign(foundCampaign);
           setNotFound(false);
 
-          // Ambil klip yang sudah disetor khusus untuk campaign ini
+          // Ambil submissions terkait
           const { data: dbSubs } = await supabase
             .from('submissions')
             .select('*')
@@ -136,12 +128,12 @@ export default function CampaignDetailPage() {
     };
   }, [campaignId]);
 
-  // Ambil akun sosmed milik user yang sedang login secara terpisah
+  // Ambil akun sosmed milik user yang sedang login
   useEffect(() => {
     let isMounted = true;
 
     async function fetchUserAccounts() {
-      if (!user) {
+      if (!user?.id) {
         if (isMounted) setSocialAccounts([]);
         return;
       }
@@ -167,39 +159,21 @@ export default function CampaignDetailPage() {
     };
   }, [user?.id]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
-        <Navbar />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-pulse">
-          <div className="h-6 w-36 bg-[#420D4B]/60 rounded-xl" />
-          <div className="h-72 rounded-3xl bg-[#420D4B]/40 border border-[#7B337E]/40" />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 h-96 rounded-2xl bg-[#420D4B]/30" />
-            <div className="h-96 rounded-2xl bg-[#420D4B]/30" />
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   if (notFound || !campaign) {
     return (
-      <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
+      <div className="min-h-screen bg-[#190428] text-[#F5D5E0] flex flex-col">
         <Navbar />
-        <main className="flex-1 max-w-lg w-full mx-auto px-4 flex flex-col items-center justify-center text-center space-y-5 py-24">
-          <div className="w-16 h-16 rounded-2xl bg-[#420D4B] border border-[#7B337E]/60 flex items-center justify-center text-[#6667AB] shadow-moon-glow">
-            <Flame className="w-8 h-8 text-amber-400" />
+        <main className="flex-1 max-w-lg w-full mx-auto px-4 flex flex-col items-center justify-center text-center space-y-4 py-24">
+          <div className="w-14 h-14 rounded-2xl bg-[#26073d] border border-[#7B337E]/40 flex items-center justify-center text-[#6667AB]">
+            <Flame className="w-7 h-7 text-amber-400" />
           </div>
-          <div className="space-y-1.5">
-            <h1 className="text-2xl font-black text-[#F5D5E0]">Campaign Tidak Ditemukan</h1>
-            <p className="text-xs text-[#F5D5E0]/70 leading-relaxed">
-              Episode campaign yang kamu tuju tidak terdaftar atau link salah. Silakan periksa kembali daftar episode aktif di beranda.
-            </p>
-          </div>
+          <h1 className="text-xl font-bold text-white">Campaign Tidak Ditemukan</h1>
+          <p className="text-xs text-[#F5D5E0]/70 leading-relaxed">
+            Episode yang kamu tuju tidak terdaftar atau link salah.
+          </p>
           <Link
             href="/"
-            className="py-3 px-6 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow"
+            className="py-2.5 px-6 rounded-full font-bold text-xs bg-white text-black hover:bg-white/90 transition-all"
           >
             Kembali ke Semua Campaign
           </Link>
@@ -230,9 +204,9 @@ export default function CampaignDetailPage() {
     targetCampaign?.youtube_video_id || 'DHiELGxnAS4'
   );
 
-  const claimedPercentage = rewardPool > 0
-    ? Math.min(100, Math.max(0, Math.round(((rewardPool - remainingPool) / rewardPool) * 100)))
-    : 30;
+  const remainingPercentage = rewardPool > 0
+    ? Math.min(100, Math.max(0, Math.round((remainingPool / rewardPool) * 100)))
+    : 70;
 
   const punchlineTimestamps = [
     { time: '04:15', seconds: 255, title: 'Momen Pembuka & Reaksi Panik Guest' },
@@ -242,121 +216,133 @@ export default function CampaignDetailPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
+    <div className="min-h-screen bg-[#190428] text-[#F5D5E0] flex flex-col font-sans antialiased selection:bg-[#7B337E] selection:text-white">
       <Navbar
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
         onOpenCreateCampaign={() => setIsCreateModalOpen(true)}
       />
 
-      {/* Floating Success Banner */}
-      {submitSuccessNotice && (
-        <div className="sticky top-20 z-50 max-w-7xl mx-auto w-full px-4 pt-4">
-          <div className="p-4 rounded-2xl bg-emerald-950/90 border border-emerald-400/60 shadow-moon-glow flex items-center justify-between text-xs text-emerald-200">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-              <span>{submitSuccessNotice}</span>
-            </div>
-            <Link
-              href="/dashboard"
-              className="font-bold underline text-emerald-300 hover:text-white"
-            >
-              Lihat di Dashboard →
-            </Link>
-          </div>
-        </div>
-      )}
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 pb-24 md:pb-12">
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 pb-28 md:pb-16">
         {/* Back Link */}
         <div>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-[#F5D5E0]/70 hover:text-[#F5D5E0] transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#F5D5E0]/70 hover:text-white transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Kembali ke Semua Campaign</span>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Semua Campaign</span>
           </Link>
         </div>
 
-        {/* HERO CAMPAIGN HEADER */}
-        <section className="glass-card rounded-3xl p-6 sm:p-8 border border-[#7B337E]/40 space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-3 max-w-3xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-[#7B337E]/40 text-[#F5D5E0] border border-[#7B337E]/60 text-xs font-bold">
-                  {targetCampaign.channel_name || '@DipanggilKeRuangan'}
+        {/* ========================================================================= */}
+        {/* HEADER: TITLE, CHANNEL & ACTION BUTTONS                                  */}
+        {/* ========================================================================= */}
+        <section className="space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-2 max-w-3xl">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-[#26073d] border border-[#7B337E]/40 text-xs font-semibold text-white">
+                  <span>{targetCampaign.channel_name || '@DipanggilKeRuangan'}</span>
+                  <CheckCircle2 className="w-3 h-3 text-[#6667AB]" />
                 </span>
-                <span className="px-3 py-1 rounded-full bg-[#420D4B] text-[#6667AB] border border-[#6667AB]/40 text-xs font-bold">
-                  Bintang Tamu: {targetCampaign.episode_guest}
+                <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/80 font-medium">
+                  Guest: {targetCampaign.episode_guest}
                 </span>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-semibold">
-                  Status: Active Payout
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold">
+                  Aktif Payout
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-black text-[#F5D5E0] leading-tight">
+
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight">
                 {targetCampaign.title}
               </h1>
-              <p className="text-xs sm:text-sm text-[#F5D5E0]/80">
+
+              <p className="text-xs sm:text-sm text-[#F5D5E0]/75 leading-relaxed">
                 {targetCampaign.description}
               </p>
             </div>
 
-            {/* Quick Action Button */}
-            <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
+            {/* Main Action Callouts */}
+            <div className="flex sm:flex-row lg:flex-col gap-2.5 shrink-0 pt-2 lg:pt-0">
               <button
                 onClick={() => setIsSubmitModalOpen(true)}
-                className="py-3.5 px-6 rounded-2xl font-bold text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity flex items-center justify-center gap-2"
+                className="flex-1 sm:flex-none px-6 py-3 rounded-full font-bold text-xs sm:text-sm bg-white hover:bg-white/90 text-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 <Scissors className="w-4 h-4 -rotate-45" />
-                <span>Submit Klip Sekarang</span>
+                <span>Setor Link Klip</span>
               </button>
+
+              <a
+                href={`https://en.savefrom.net/20/#url=${encodeURIComponent(targetCampaign?.source_youtube_url || '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 sm:flex-none px-5 py-3 rounded-full font-semibold text-xs bg-[#26073d] hover:bg-[#420D4B] text-white border border-[#7B337E]/40 transition-all flex items-center justify-center gap-2"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Unduh Footage</span>
+              </a>
             </div>
           </div>
 
-          {/* Budget Pool Bar */}
-          <div className="p-4 rounded-2xl bg-[#210635]/80 border border-[#7B337E]/30 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
-              <span className="text-[#F5D5E0]/70 font-semibold">
-                Alokasi Dana Tersisa: <strong className="text-emerald-400 font-bold">Rp {remainingPool.toLocaleString('id-ID')}</strong> dari Rp {rewardPool.toLocaleString('id-ID')}
-              </span>
-              <span className="text-xs font-extrabold text-[#F5D5E0]">
-                Tarif Komisi: <span className="text-emerald-400">Rp {ratePer1k.toLocaleString('id-ID')}</span> / 1.000 Views
-              </span>
+          {/* 3 Metric Pills ala TernakKlip */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            <div className="p-4 rounded-2xl bg-[#26073d]/70 border border-[#7B337E]/30 space-y-1">
+              <span className="text-[11px] text-[#F5D5E0]/60 font-medium block">Tarif per 1.000 Views (CPM)</span>
+              <div className="text-lg font-black text-emerald-400 font-mono">
+                Rp {ratePer1k.toLocaleString('id-ID')}
+              </div>
             </div>
 
-            <div className="w-full h-3 rounded-full bg-[#420D4B] overflow-hidden border border-[#7B337E]/40">
-              <div
-                className="h-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] rounded-full transition-all duration-500"
-                style={{ width: `${claimedPercentage}%` }}
-              />
+            <div className="p-4 rounded-2xl bg-[#26073d]/70 border border-[#7B337E]/30 space-y-1">
+              <div className="flex justify-between items-center text-[11px] text-[#F5D5E0]/60">
+                <span>Sisa Budget Pool</span>
+                <span className="font-bold text-white">{remainingPercentage}%</span>
+              </div>
+              <div className="text-lg font-black text-white font-mono">
+                Rp {remainingPool.toLocaleString('id-ID')}
+              </div>
+              <div className="w-full h-1 rounded-full bg-[#190428] overflow-hidden mt-1">
+                <div
+                  className="h-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] rounded-full"
+                  style={{ width: `${remainingPercentage}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#26073d]/70 border border-[#7B337E]/30 space-y-1">
+              <span className="text-[11px] text-[#F5D5E0]/60 font-medium block">Maksimal Komisi / Klip</span>
+              <div className="text-lg font-black text-white font-mono">
+                Rp {maxPayout.toLocaleString('id-ID')}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* 2-COLUMN MAIN CONTENT: VIDEO & CREATOR KIT */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left 2 Cols: Video Player & Punchline Bookmarks */}
+        {/* ========================================================================= */}
+        {/* 2-COLUMN MAIN: VIDEO PLAYER & DETAILS                                    */}
+        {/* ========================================================================= */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left 2 Cols: Player & Timestamps */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Embedded Video Player */}
-            <div className="glass-card rounded-2xl p-4 sm:p-6 border border-[#7B337E]/40 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base sm:text-lg font-bold text-[#F5D5E0] flex items-center gap-2">
-                  <Youtube className="w-5 h-5 text-red-500" />
-                  <span>Video Podcast Asli (Source Footage)</span>
-                </h2>
+            {/* Video Iframe Player */}
+            <div className="rounded-2xl bg-[#26073d]/60 border border-[#7B337E]/30 p-3 sm:p-4 space-y-3">
+              <div className="flex items-center justify-between text-xs px-1">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <Youtube className="w-4 h-4 text-red-500" />
+                  <span>Video Footage Resmi</span>
+                </span>
                 <a
                   href={targetCampaign?.source_youtube_url || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs font-bold text-[#6667AB] hover:text-[#F5D5E0] flex items-center gap-1"
+                  className="text-[11px] font-semibold text-[#6667AB] hover:text-white flex items-center gap-1"
                 >
                   <span>Buka di YouTube</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
 
-              {/* YouTube Iframe Player */}
-              <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-[#7B337E]/40 shadow-inner">
+              <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-white/10 shadow-inner">
                 <iframe
                   className="w-full h-full"
                   src={`https://www.youtube.com/embed/${videoEmbedId}${activeTimestamp ? `?start=${activeTimestamp}&autoplay=1` : ''}`}
@@ -365,51 +351,35 @@ export default function CampaignDetailPage() {
                   allowFullScreen
                 />
               </div>
-
-              {/* Footage Download & Action Row */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                <span className="text-xs text-[#F5D5E0]/60">
-                  Resolusi Asli: 1080p 60fps • Format Vertikal 9:16 disarankan
-                </span>
-                <a
-                  href={`https://en.savefrom.net/20/#url=${encodeURIComponent(targetCampaign?.source_youtube_url || '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#420D4B] hover:bg-[#7B337E] text-xs font-semibold text-[#F5D5E0] border border-[#7B337E]/50 transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download Footage Video</span>
-                </a>
-              </div>
             </div>
 
-            {/* PUNCHLINE BOOKMARKS / TIMESTAMPS */}
-            <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
+            {/* Punchline Bookmarks */}
+            <div className="rounded-2xl bg-[#26073d]/60 border border-[#7B337E]/30 p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-[#F5D5E0] flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-[#6667AB]" />
                   <span>Rekomendasi Menit Punchline (Viral Potential)</span>
                 </h3>
-                <span className="text-xs text-[#F5D5E0]/60">Klik untuk lompat ke menit</span>
+                <span className="text-[11px] text-[#F5D5E0]/60">Klik untuk lompat</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {punchlineTimestamps.map((ts, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => setActiveTimestamp(ts.seconds)}
-                    className="p-3.5 rounded-xl bg-[#210635]/80 hover:bg-[#420D4B] border border-[#7B337E]/40 hover:border-[#6667AB] transition-all text-left flex items-start gap-3 group"
+                    className="p-3 rounded-xl bg-[#190428] hover:bg-[#320a4d] border border-[#7B337E]/30 transition-all text-left flex items-start gap-2.5 group"
                   >
-                    <div className="px-2 py-1 rounded-lg bg-[#7B337E]/40 group-hover:bg-[#7B337E] text-xs font-mono font-bold text-[#F5D5E0] shrink-0">
+                    <span className="px-2 py-0.5 rounded-md bg-white/10 group-hover:bg-white text-white group-hover:text-black text-xs font-mono font-bold shrink-0 transition-colors">
                       {ts.time}
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-[#F5D5E0] block leading-snug group-hover:text-emerald-300 transition-colors">
+                    </span>
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-white group-hover:text-emerald-300 block truncate transition-colors">
                         {ts.title}
                       </span>
-                      <span className="text-[10px] text-[#F5D5E0]/50 mt-0.5 block">
-                        Durasi klip ideal: 30 - 60 detik
+                      <span className="text-[10px] text-[#F5D5E0]/50 block">
+                        Durasi klip ideal 30–60 dtk
                       </span>
                     </div>
                   </button>
@@ -417,181 +387,108 @@ export default function CampaignDetailPage() {
               </div>
             </div>
 
-            {/* CREATOR GUIDELINES (DO'S & DON'TS) */}
-            <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
-              <h3 className="text-base font-bold text-[#F5D5E0] flex items-center gap-2">
+            {/* Editorial Guidelines (Do's & Don'ts) */}
+            <div className="rounded-2xl bg-[#26073d]/60 border border-[#7B337E]/30 p-5 space-y-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-[#6667AB]" />
-                <span>Panduan Editorial & Standar Kualitas Klip</span>
+                <span>Ketentuan Format Konten</span>
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* DO's */}
-                <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30 space-y-2.5">
-                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">
-                    Wajib Dilakukan (Do's):
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/20 space-y-1.5">
+                  <span className="font-bold text-emerald-400 block uppercase tracking-wider text-[10px]">
+                    Wajib Dilakukan:
                   </span>
-                  <ul className="space-y-2 text-xs text-[#F5D5E0]/90">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>Fokus pada punchline lucu, reaksi mimik wajah, dan momen kaget.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>Gunakan subtitle dinamis dengan font tebal (Komika Axis / Bold).</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>Sertakan hook visual atau teks pancingan di 3 detik awal.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>Wajib sertakan seluruh hashtag kampanye di caption video.</span>
-                    </li>
+                  <ul className="space-y-1 text-[#F5D5E0]/80">
+                    <li>• Format vertikal 9:16 untuk TikTok / Reels</li>
+                    <li>• Pasang subtitle font tebal yang mudah dibaca</li>
+                    <li>• Ambil punchline lucu di 3 detik awal (hook)</li>
+                    <li>• Wajib cantumkan semua hashtag kampanye</li>
                   </ul>
                 </div>
 
-                {/* DONT's */}
-                <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 space-y-2.5">
-                  <span className="text-xs font-bold text-rose-400 uppercase tracking-wider block">
-                    Dilarang Keras (Don'ts):
+                <div className="p-3.5 rounded-xl bg-rose-950/20 border border-rose-500/20 space-y-1.5">
+                  <span className="font-bold text-rose-400 block uppercase tracking-wider text-[10px]">
+                    Dilarang Keras:
                   </span>
-                  <ul className="space-y-2 text-xs text-[#F5D5E0]/90">
-                    <li className="flex items-start gap-2">
-                      <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                      <span>Dilarang membuat clickbait hoaks atau menggiring opini negatif SARA.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                      <span>Dilarang reupload mentah tanpa crop 9:16 atau tanpa subtitle.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                      <span>Dilarang menutup muka pembicara dengan watermark pribadi terlalu besar.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                      <span>Dilarang menggunakan bot views (terdeteksi auto-reject oleh Apify).</span>
-                    </li>
+                  <ul className="space-y-1 text-[#F5D5E0]/80">
+                    <li>• Dilarang membuat hoaks atau clickbait SARA</li>
+                    <li>• Dilarang reupload tanpa subtitle / crop</li>
+                    <li>• Dilarang bot views (terdeteksi auto-reject)</li>
                   </ul>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right 1 Col: Creator Kit, Hashtags, Payout Terms */}
+          {/* Right 1 Col: Hashtags, Submissions */}
           <div className="space-y-6">
             {/* HASHTAG BOX */}
-            <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
+            <div className="rounded-2xl bg-[#26073d]/60 border border-[#7B337E]/30 p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-[#F5D5E0] flex items-center gap-1.5">
-                  <Hash className="w-4 h-4 text-[#6667AB]" />
-                  <span>Hashtag Wajib</span>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Hash className="w-3.5 h-3.5 text-[#6667AB]" />
+                  <span>Hashtag Wajib Postingan</span>
                 </h3>
                 <button
                   onClick={handleCopyTags}
-                  className="p-1.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] text-xs flex items-center gap-1 transition-colors"
-                  title="Salin Semua Hashtag"
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white text-white hover:text-black text-[11px] font-semibold flex items-center gap-1 transition-all"
                 >
-                  {copiedTags ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedTags ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                   <span>{copiedTags ? 'Tersalin' : 'Salin'}</span>
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {hashtagRequirements.map((tag) => (
                   <span
                     key={tag}
-                    className="px-3 py-1.5 rounded-xl bg-[#210635] border border-[#7B337E]/50 text-xs font-semibold text-[#F5D5E0]"
+                    className="px-2.5 py-1 rounded-lg bg-[#190428] border border-[#7B337E]/40 text-xs font-medium text-white"
                   >
                     {tag}
                   </span>
                 ))}
               </div>
 
-              <p className="text-[11px] text-[#F5D5E0]/60">
-                Sistem Apify Scraper Engine akan memeriksa keberadaan hashtag ini secara otomatis di caption TikTok atau Instagram Reels kamu.
+              <p className="text-[10px] text-[#F5D5E0]/60 leading-relaxed">
+                Hashtag ini dicek otomatis oleh scraper Apify saat kamu menyetor video.
               </p>
             </div>
 
-            {/* PAYOUT TERMS */}
-            <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-3">
-              <h3 className="text-sm font-bold text-[#F5D5E0]">
-                Ketentuan Pembayaran Komisi
-              </h3>
-
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between py-1.5 border-b border-[#7B337E]/20">
-                  <span className="text-[#F5D5E0]/60">Tarif per 1.000 Views</span>
-                  <span className="font-extrabold text-emerald-400">
-                    Rp {ratePer1k.toLocaleString('id-ID')}
-                  </span>
-                </div>
-
-                <div className="flex justify-between py-1.5 border-b border-[#7B337E]/20">
-                  <span className="text-[#F5D5E0]/60">Minimal Views Awal</span>
-                  <span className="font-bold text-[#F5D5E0]">
-                    {minViews.toLocaleString('id-ID')} views
-                  </span>
-                </div>
-
-                <div className="flex justify-between py-1.5 border-b border-[#7B337E]/20">
-                  <span className="text-[#F5D5E0]/60">Maksimal Komisi / Klip</span>
-                  <span className="font-bold text-emerald-400">
-                    Rp {maxPayout.toLocaleString('id-ID')}
-                  </span>
-                </div>
-
-                <div className="flex justify-between py-1.5">
-                  <span className="text-[#F5D5E0]/60">Interval Sinkronisasi Apify</span>
-                  <span className="font-bold text-[#6667AB]">Setiap 15 Menit</span>
-                </div>
+            {/* SUBMISSIONS LIST */}
+            <div className="rounded-2xl bg-[#26073d]/60 border border-[#7B337E]/30 p-5 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <h3 className="font-bold text-white">Klip yang Sudah Masuk</h3>
+                <span className="font-mono text-[#6667AB]">{campaignSubmissions.length} Klip</span>
               </div>
 
-              <button
-                onClick={() => setIsSubmitModalOpen(true)}
-                className="w-full mt-3 py-3.5 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 transition-opacity flex items-center justify-center gap-2"
-              >
-                <Scissors className="w-4 h-4 -rotate-45" />
-                <span>Submit Link Video Klip</span>
-              </button>
-            </div>
-
-            {/* RECENT SUBMISSIONS ON THIS CAMPAIGN */}
-            <div className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-3">
-              <h3 className="text-sm font-bold text-[#F5D5E0] flex items-center justify-between">
-                <span>Klip yang Sudah Disetor</span>
-                <span className="text-xs text-[#6667AB] font-semibold">{campaignSubmissions.length} Klip</span>
-              </h3>
-
               {campaignSubmissions.length === 0 ? (
-                <div className="p-6 text-center rounded-xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-2">
-                  <Scissors className="w-6 h-6 text-[#6667AB] mx-auto -rotate-45" />
-                  <p className="text-xs text-[#F5D5E0]/70">
-                    Belum ada klip yang disetor untuk episode ini.
-                  </p>
+                <div className="p-6 text-center rounded-xl bg-[#190428] border border-[#7B337E]/25 space-y-2">
+                  <Scissors className="w-5 h-5 text-[#6667AB] mx-auto -rotate-45" />
+                  <p className="text-xs text-[#F5D5E0]/60">Belum ada klip yang disetor untuk episode ini.</p>
                   <button
                     onClick={() => setIsSubmitModalOpen(true)}
-                    className="text-xs font-bold text-emerald-400 hover:underline inline-block pt-1"
+                    className="text-xs font-bold text-white hover:underline pt-1 inline-block"
                   >
-                    Setor Klip Pertama →
+                    Jadilah yang Pertama →
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                   {campaignSubmissions.map((sub) => (
                     <div
                       key={sub.id}
-                      className="p-3 rounded-xl bg-[#210635]/80 border border-[#7B337E]/30 flex items-center justify-between text-xs"
+                      className="p-3 rounded-xl bg-[#190428] border border-[#7B337E]/30 flex items-center justify-between text-xs"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-[#420D4B] flex items-center justify-center font-bold text-[10px] text-[#F5D5E0] uppercase">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-md bg-[#420D4B] flex items-center justify-center font-bold text-[9px] text-white uppercase">
                           {sub.platform === 'tiktok' ? 'TT' : 'IG'}
-                        </div>
+                        </span>
                         <div>
-                          <span className="font-bold text-[#F5D5E0] block leading-snug">
+                          <span className="font-bold text-white block">
                             {Number(sub.current_views || 0).toLocaleString('id-ID')} Views
                           </span>
-                          <span className="text-[10px] text-emerald-400 font-semibold">
+                          <span className="text-[10px] text-emerald-400 font-mono">
                             Rp {Number(sub.earnings || 0).toLocaleString('id-ID')}
                           </span>
                         </div>
@@ -601,8 +498,7 @@ export default function CampaignDetailPage() {
                         href={sub.post_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors"
-                        title="Buka Video"
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/20 text-white transition-colors"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
@@ -629,10 +525,6 @@ export default function CampaignDetailPage() {
         socialAccounts={socialAccounts}
         onSubmitSuccess={(newSub) => {
           setCampaignSubmissions((prev) => [newSub, ...prev]);
-          setSubmitSuccessNotice(
-            `Klip berhasil disetor! Views awal: ${Number(newSub.current_views || 0).toLocaleString('id-ID')}, komisi terhitung Rp ${Number(newSub.earnings || 0).toLocaleString('id-ID')}.`
-          );
-          setTimeout(() => setSubmitSuccessNotice(null), 8000);
         }}
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
@@ -645,7 +537,7 @@ export default function CampaignDetailPage() {
         }}
       />
 
-      {/* MOBILE BOTTOM APP NAVIGATION */}
+      {/* Mobile Bottom Navigation */}
       <BottomNav
         onOpenSubmit={() => setIsSubmitModalOpen(true)}
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
