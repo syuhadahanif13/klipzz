@@ -18,6 +18,7 @@ import {
 import { Campaign, SocialAccount, Submission } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { getFootageDownloadUrl } from '../lib/footage';
 import { BioChallengeModal } from './BioChallengeModal';
 import { SubmitClipModal } from './SubmitClipModal';
 
@@ -280,9 +281,7 @@ export function CampaignDetailModal({
                 Setor Link Klip
               </button>
               <a
-                href={`https://en.savefrom.net/20/#url=${encodeURIComponent(
-                  campaign.source_youtube_url || ''
-                )}`}
+                href={getFootageDownloadUrl(campaign.source_youtube_url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface-2)] px-5 py-2.5 text-xs font-semibold text-fg transition-colors hover:bg-[var(--surface-3)] sm:text-sm"

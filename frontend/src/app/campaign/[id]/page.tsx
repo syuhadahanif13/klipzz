@@ -24,6 +24,7 @@ import { BioChallengeModal } from '../../../components/BioChallengeModal';
 import { SubmitClipModal } from '../../../components/SubmitClipModal';
 import { CreateCampaignModal } from '../../../components/CreateCampaignModal';
 import { supabase } from '../../../lib/supabaseClient';
+import { getFootageDownloadUrl } from '../../../lib/footage';
 import { useAuth } from '../../../context/AuthContext';
 import { Campaign, SocialAccount, Submission } from '../../../types';
 
@@ -327,7 +328,7 @@ export default function CampaignDetailPage() {
               </button>
 
               <a
-                href={`https://en.savefrom.net/20/#url=${encodeURIComponent(targetCampaign?.source_youtube_url || '')}`}
+                href={getFootageDownloadUrl(targetCampaign?.source_youtube_url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 sm:flex-none px-5 py-3 rounded-full font-semibold text-xs bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-fg border border-[var(--line)] transition-all flex items-center justify-center gap-2"
