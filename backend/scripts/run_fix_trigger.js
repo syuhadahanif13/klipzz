@@ -2,8 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is required. Export it before running this script.');
+  process.exit(1);
+}
+
 const client = new Client({
-  connectionString: 'postgresql://postgres.dnytjjvkmtvbagitwlax:06p3FyODWzf28mtN@aws-0-ap-south-1.pooler.supabase.com:6543/postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 

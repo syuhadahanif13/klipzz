@@ -1,96 +1,135 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { supabase } from '../services/supabaseService.js';
 import { scrapePostMetrics } from '../services/apifyService.js';
 
-function detectPlatform(url: string): 'tiktok' | 'instagram' | null {
-  if (url.includes('tiktok.com')) return 'tiktok';
-  if (url.includes('instagram.com')) return 'instagram';
-  return null;
+type SupportedPlatform = 'tiktok' | 'instagram';
+
+const submitSchema = z.object({
+  campaignId: z.string().uuid(),
+  socialAccountId: z.string().uuid({
+    message: 'A verified social account is required before submitting a clip.',
+  }),
+  postUrl: z.string().trim().url().max(500),
+});
+
+function detectPlatform(rawUrl: string): SupportedPlatform | null {
+  try {
+    const host = new URL(rawUrl).hostname.toLowerCase().replace(/^www\./, '');
+    if (host === 'tiktok.com' || host.endsWith('.tiktok.com')) return 'tiktok';
+    if (host === 'instagram.com' || host.endsWith('.instagram.com')) return 'instagram';
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizePostUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl.trim());
+    url.hash = '';
+    url.search = '';
+    return url.toString();
+  } catch {
+    return rawUrl.trim();
+  }
 }
 
 export async function submitClip(req: Request, res: Response) {
   try {
-    const { campaignId, clipperId, socialAccountId, postUrl } = req.body;
+    if (!req.user) return res.status(401).json({ error: 'Authentication required.' });
 
-    if (!campaignId || !clipperId || !postUrl) {
-      return res.status(400).json({ error: 'Missing campaignId, clipperId, or postUrl' });
+    const parsed = submitSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: parsed.error.issues.map((issue) => issue.message).join(' '),
+      });
     }
 
+    const { campaignId, socialAccountId, postUrl } = parsed.data;
     const platform = detectPlatform(postUrl);
     if (!platform) {
-      return res.status(400).json({ error: 'Unsupported URL. Only TikTok or Instagram Reels are accepted.' });
+      return res
+        .status(400)
+        .json({ error: 'Unsupported URL. Only TikTok or Instagram Reels are accepted.' });
     }
 
-    // Pastikan campaign ada dan statusnya masih aktif
+    const normalizedUrl = normalizePostUrl(postUrl);
+
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .select('*')
       .eq('id', campaignId)
-      .single();
+      .maybeSingle();
 
-    if (campaignError || !campaign) {
-      return res.status(404).json({ error: 'Campaign not found' });
-    }
+    if (campaignError) return res.status(500).json({ error: campaignError.message });
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found.' });
 
     if (campaign.status !== 'active') {
       return res.status(400).json({ error: 'This campaign is no longer accepting submissions.' });
     }
 
-    // Cek apakah akun sosmed yang dipakai sudah terverifikasi di profil
-    if (socialAccountId) {
-      const { data: account } = await supabase
-        .from('social_accounts')
-        .select('*')
-        .eq('id', socialAccountId)
-        .eq('user_id', clipperId)
-        .single();
-
-      if (!account || !account.is_verified) {
-        return res.status(403).json({
-          error: 'Your social account is not verified yet. Please complete the Bio Code Challenge first.',
-        });
-      }
+    if (campaign.end_date && new Date(campaign.end_date) < new Date()) {
+      return res.status(400).json({ error: 'This campaign has ended.' });
     }
 
-    // Cegah duplikasi url video klip di campaign yang sama
-    const { data: existingSub } = await supabase
+    if (Number(campaign.remaining_pool) <= 0) {
+      return res.status(400).json({ error: 'This campaign reward pool has been fully paid out.' });
+    }
+
+    const { data: account, error: accountError } = await supabase
+      .from('social_accounts')
+      .select('id, user_id, platform, handle, is_verified')
+      .eq('id', socialAccountId)
+      .maybeSingle();
+
+    if (accountError) return res.status(500).json({ error: accountError.message });
+    if (!account || account.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'You do not own this social account.' });
+    }
+    if (!account.is_verified) {
+      return res.status(403).json({
+        error: 'Your social account is not verified yet. Please complete the Bio Code Challenge first.',
+      });
+    }
+    if (account.platform !== platform) {
+      return res.status(400).json({
+        error: `This link is a ${platform} link but the selected account is ${account.platform}.`,
+      });
+    }
+
+    const { data: existingSub, error: duplicateError } = await supabase
       .from('submissions')
       .select('id')
       .eq('campaign_id', campaignId)
-      .eq('post_url', postUrl)
+      .eq('post_url', normalizedUrl)
       .maybeSingle();
 
+    if (duplicateError) return res.status(500).json({ error: duplicateError.message });
     if (existingSub) {
-      return res.status(409).json({ error: 'This video clip URL has already been submitted for this campaign.' });
+      return res
+        .status(409)
+        .json({ error: 'This video clip URL has already been submitted for this campaign.' });
     }
 
-    // Tarik metrik awal klip lewat apify scraper
-    const metrics = await scrapePostMetrics(platform, postUrl);
+    const metrics = await scrapePostMetrics(platform, normalizedUrl);
 
-    // Cek kelengkapan hashtag wajib dari campaign di caption video
     const captionLower = (metrics.caption || '').toLowerCase();
     const missingHashtags = (campaign.hashtag_requirements || []).filter(
       (tag: string) => !captionLower.includes(tag.toLowerCase())
     );
-
     const isHashtagValid = missingHashtags.length === 0;
 
-    // Hitung estimasi komisi awal kalau views tembus batas minimal (threshold)
-    let initialEarnings = 0;
-    if (metrics.views >= campaign.min_views_threshold) {
-      initialEarnings = (metrics.views / 1000.0) * campaign.rate_per_1k_views;
-      if (initialEarnings > campaign.max_payout_per_clip) {
-        initialEarnings = campaign.max_payout_per_clip;
-      }
-    }
-
+    // Earnings are intentionally left at 0 here. The database trigger computes
+    // them from scraped views, enforces the per-clip cap, and caps the payout at
+    // the remaining campaign pool. This prevents client-side payout manipulation.
     const { data: submission, error: subError } = await supabase
       .from('submissions')
       .insert({
         campaign_id: campaignId,
-        clipper_id: clipperId,
-        social_account_id: socialAccountId || null,
-        post_url: postUrl,
+        clipper_id: req.user.id,
+        social_account_id: socialAccountId,
+        post_url: normalizedUrl,
         platform,
         post_id: metrics.postId,
         caption: metrics.caption,
@@ -99,15 +138,25 @@ export async function submitClip(req: Request, res: Response) {
         current_likes: metrics.likes,
         current_comments: metrics.comments,
         current_shares: metrics.shares,
-        earnings: initialEarnings,
+        earnings: 0,
         status: isHashtagValid ? 'approved' : 'pending',
         rejection_reason: isHashtagValid ? null : `Missing hashtags: ${missingHashtags.join(', ')}`,
         last_scraped_at: new Date().toISOString(),
       })
-      .select()
+      .select(
+        `
+          *,
+          campaign:campaigns(id, title, channel_name, episode_guest, rate_per_1k_views, max_payout_per_clip, thumbnail_url)
+        `
+      )
       .single();
 
     if (subError) {
+      if (subError.code === '23505') {
+        return res
+          .status(409)
+          .json({ error: 'This video clip URL has already been submitted for this campaign.' });
+      }
       return res.status(500).json({ error: subError.message });
     }
 
@@ -118,20 +167,29 @@ export async function submitClip(req: Request, res: Response) {
       missingHashtags: isHashtagValid ? [] : missingHashtags,
     });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    return res.status(503).json({
+      error: err.message || 'Could not verify the clip right now. Please try again later.',
+    });
   }
 }
 
 export async function getClipperSubmissions(req: Request, res: Response) {
   try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required.' });
+
     const { clipperId } = req.params;
+    if (clipperId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'You can only view your own submissions.' });
+    }
 
     const { data, error } = await supabase
       .from('submissions')
-      .select(`
-        *,
-        campaign:campaigns(id, title, channel_name, episode_guest, rate_per_1k_views)
-      `)
+      .select(
+        `
+          *,
+          campaign:campaigns(id, title, channel_name, episode_guest, rate_per_1k_views)
+        `
+      )
       .eq('clipper_id', clipperId)
       .order('created_at', { ascending: false });
 

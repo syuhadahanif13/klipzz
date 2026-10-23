@@ -17,17 +17,15 @@ import { SubmitClipModal } from '../components/SubmitClipModal';
 import { CreateCampaignModal } from '../components/CreateCampaignModal';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { Campaign, SocialAccount, Submission } from '../types';
-import { MOCK_CAMPAIGNS } from '../data/mockData';
+import { Campaign, SocialAccount } from '../types';
 
 type FilterTab = 'all' | 'newest' | 'highest_budget' | 'highest_rate';
 
 export default function HomePage() {
   const { user } = useAuth();
-  const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
-  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState<boolean>(false);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState<boolean>(true);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
 
   // Hero Carousel
   const [activeHeroIndex, setActiveHeroIndex] = useState<number>(0);
@@ -57,15 +55,8 @@ export default function HomePage() {
           .neq('status', 'draft')
           .order('created_at', { ascending: false });
 
-        if (dbCampaigns && dbCampaigns.length > 0) {
-          setCampaigns(dbCampaigns as Campaign[]);
-        }
-
-        const { data: dbSubs } = await supabase
-          .from('submissions')
-          .select('id, current_views, earnings, status');
-
-        if (dbSubs) setSubmissions(dbSubs as Submission[]);
+        // Never fall back to mock campaigns: an empty database must look empty.
+        setCampaigns((dbCampaigns as Campaign[]) || []);
       } catch (e) {
         console.error('Error fetching platform data:', e);
       } finally {
@@ -131,14 +122,18 @@ export default function HomePage() {
     });
 
   const featuredCampaigns = campaigns.slice(0, 5);
-  const featuredCampaign = featuredCampaigns[activeHeroIndex] || campaigns[0] || MOCK_CAMPAIGNS[0];
+  const featuredCampaign = featuredCampaigns[activeHeroIndex] ?? campaigns[0] ?? null;
 
-  // Calculator
-  const maxPayoutPerClip =
-    campaigns.length > 0 && campaigns[0]?.max_payout_per_clip
-      ? Number(campaigns[0].max_payout_per_clip)
-      : 2000000;
-  const rawEarnings = Math.round((viewsEstimate / 1000) * 18000);
+  // Calculator — derive the best available rate instead of hardcoding one.
+  const maxPayoutPerClip = campaigns.reduce(
+    (max, camp) => Math.max(max, Number(camp.max_payout_per_clip) || 0),
+    0
+  ) || 1_500_000;
+  const calculatorRate = campaigns.reduce(
+    (max, camp) => Math.max(max, Number(camp.rate_per_1k_views) || 0),
+    0
+  ) || 15_000;
+  const rawEarnings = Math.round((viewsEstimate / 1000) * calculatorRate);
   const isCapped = rawEarnings >= maxPayoutPerClip;
   const estimatedEarnings = Math.min(rawEarnings, maxPayoutPerClip);
 
@@ -154,6 +149,7 @@ export default function HomePage() {
         {/* ============================================================
             HERO — Full-bleed cinematic banner (ala TernakKlip)
             ============================================================ */}
+        {featuredCampaign ? (
         <section
           aria-label="Featured campaigns"
           className="relative w-full shrink-0"
@@ -213,10 +209,10 @@ export default function HomePage() {
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.875rem] text-white/65">
                     <span>Campaign</span>
                     <span className="font-semibold text-white">
-                      Rp {(Number(featuredCampaign.rate_per_1k_views) || 18000).toLocaleString('id-ID')}rb/1k views
+                      Rp {(Number(featuredCampaign.rate_per_1k_views) || 0).toLocaleString('id-ID')} / 1k views
                     </span>
                     <span>
-                      Rp {((Number(featuredCampaign.remaining_pool) || 16800000) / 1_000_000).toFixed(0)}jt tersisa
+                      Rp {((Number(featuredCampaign.remaining_pool) || 0) / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}jt tersisa
                     </span>
                   </div>
 
@@ -282,35 +278,27 @@ export default function HomePage() {
             )}
           </div>
         </section>
+        ) : (
+          <section
+            aria-label="No active campaigns"
+            className="w-full border-b border-[var(--line)] bg-[var(--surface)]"
+          >
+            <div className="mx-auto flex min-h-[16rem] max-w-3xl flex-col items-center justify-center gap-3 px-5 py-12 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--surface-2)] border border-[var(--line)] flex items-center justify-center">
+                <Scissors className="w-6 h-6 -rotate-45 text-fg-muted" />
+              </div>
+              <h2 className="text-lg font-semibold text-fg">Belum ada campaign aktif</h2>
+              <p className="text-sm text-fg-muted max-w-md">
+                Campaign baru akan tampil di sini setelah brand menerbitkannya. Cek kembali nanti.
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* ============================================================
             DISCOVER BAR — Filter tabs + search (TernakKlip style)
             ============================================================ */}
         <div className="w-full px-5 sm:px-[4vw] pt-5 flex flex-wrap items-center gap-x-3 sm:h-14 sm:flex-nowrap border-b border-[var(--line)]">
-
-          {/* Type segments */}
-          <div className="relative flex h-9 shrink-0 items-center rounded-[14px] border border-[var(--line)] bg-[var(--surface-2)] p-0.5">
-            <button
-              type="button"
-              className="relative z-10 h-8 shrink-0 rounded-xl px-3.5 text-[0.875rem] font-medium whitespace-nowrap text-fg bg-[var(--surface-3)]"
-            >
-              Semua
-            </button>
-            <button
-              type="button"
-              className="relative z-10 h-8 shrink-0 rounded-xl px-3.5 text-[0.875rem] font-medium whitespace-nowrap text-fg-muted hover:text-fg"
-            >
-              Podcast
-            </button>
-            <button
-              type="button"
-              className="relative z-10 h-8 shrink-0 rounded-xl px-3.5 text-[0.875rem] font-medium whitespace-nowrap text-fg-muted hover:text-fg"
-            >
-              Komedi
-            </button>
-          </div>
-
-          <span aria-hidden="true" className="hidden h-5 w-px shrink-0 bg-[var(--line)] sm:block" />
 
           {/* Sort tabs + search */}
           <div className="order-last flex h-11 min-w-0 basis-full items-center gap-2 sm:order-none sm:contents">
@@ -396,7 +384,7 @@ export default function HomePage() {
                 const pool = Number(camp.reward_pool) || 1;
                 const rem = Number(camp.remaining_pool) || 0;
                 const pct = Math.min(100, Math.max(0, Math.round((rem / pool) * 100)));
-                const rate = Number(camp.rate_per_1k_views) || 15000;
+                const rate = Number(camp.rate_per_1k_views) || 0;
                 const rateLabel =
                   rate >= 1000
                     ? `Rp ${(rate / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}rb/1K`
@@ -641,7 +629,9 @@ export default function HomePage() {
         onClose={() => setIsSubmitModalOpen(false)}
         campaign={selectedCampaign}
         socialAccounts={socialAccounts}
-        onSubmitSuccess={(newSub) => setSubmissions((prev) => [newSub, ...prev])}
+        onSubmitSuccess={() => {
+          // The modal closes on success; dashboard shows the new submission.
+        }}
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
       />
       <CreateCampaignModal

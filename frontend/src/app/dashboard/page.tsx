@@ -9,16 +9,12 @@ import {
   Eye,
   Scissors,
   CheckCircle2,
-  AlertCircle,
   ExternalLink,
   Plus,
   ShieldCheck,
   Heart,
-  Share2,
-  Clock,
   Sparkles,
   Flame,
-  UserCheck,
   Layers,
 } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
@@ -45,7 +41,6 @@ export default function DashboardPage() {
 
   const isBrandOrAdmin = user?.role === 'admin' || user?.role === 'brand';
 
-  // Ambil data spesifik berdasarkan peran akun (Brand/Admin vs Clipper)
   useEffect(() => {
     async function loadDashboardData() {
       if (!user) {
@@ -59,7 +54,6 @@ export default function DashboardPage() {
       setIsLoading(true);
       try {
         if (isBrandOrAdmin) {
-          // 1. Akun Brand / Admin: Ambil campaign yang dimiliki oleh brand ini
           const { data: brandCamps } = await supabase
             .from('campaigns')
             .select('*')
@@ -70,7 +64,12 @@ export default function DashboardPage() {
             setCampaigns(brandCamps as Campaign[]);
           }
 
-          // Ambil seluruh klip yang masuk ke campaign milik brand ini
+          const campaignIds = (brandCamps || []).map((camp) => camp.id);
+          if (campaignIds.length === 0) {
+            setSubmissions([]);
+            return;
+          }
+
           const { data: brandSubs } = await supabase
             .from('submissions')
             .select(`
@@ -78,13 +77,13 @@ export default function DashboardPage() {
               campaign:campaigns(id, title, channel_name, episode_guest, rate_per_1k_views),
               clipper:profiles!submissions_clipper_id_fkey(username, full_name, avatar_url)
             `)
+            .in('campaign_id', campaignIds)
             .order('created_at', { ascending: false });
 
           if (brandSubs) {
             setSubmissions(brandSubs as Submission[]);
           }
         } else {
-          // 2. Akun Clipper: Ambil akun sosmed terverifikasi milik clipper
           const { data: accounts } = await supabase
             .from('social_accounts')
             .select('*')
@@ -94,7 +93,6 @@ export default function DashboardPage() {
             setSocialAccounts(accounts as SocialAccount[]);
           }
 
-          // Ambil seluruh klip yang pernah disetor oleh clipper ini
           const { data: userSubs } = await supabase
             .from('submissions')
             .select(`
@@ -108,7 +106,6 @@ export default function DashboardPage() {
             setSubmissions(userSubs as Submission[]);
           }
 
-          // Ambil seluruh campaign aktif yang disediakan oleh Brand agar clipper bisa langsung memilih campaign
           const { data: activeCamps } = await supabase
             .from('campaigns')
             .select('*')
@@ -135,7 +132,14 @@ export default function DashboardPage() {
   const totalRemainingBudget = campaigns.reduce((sum, c) => sum + (Number(c.remaining_pool) || 0), 0);
 
   const handleAccountVerified = (account: SocialAccount) => {
-    setSocialAccounts((prev) => [account, ...prev]);
+    setSocialAccounts((prev) => [
+      account,
+      ...prev.filter(
+        (item) =>
+          item.id !== account.id &&
+          !(item.platform === account.platform && item.handle === account.handle)
+      ),
+    ]);
   };
 
   const handleOpenSubmit = (camp: Campaign) => {
@@ -148,34 +152,34 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col">
+    <div className="min-h-screen surface-app flex flex-col antialiased">
       <Navbar
         onOpenBioChallenge={() => setIsBioModalOpen(true)}
         onOpenCreateCampaign={() => setIsCreateModalOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 pb-24 md:pb-12">
+      <main className="flex-1 w-full px-5 sm:px-[4vw] py-6 sm:py-8 space-y-8 pb-24 md:pb-12">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7B337E]/30 text-[#F5D5E0] border border-[#7B337E]/50 text-xs font-semibold mb-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--surface-2)] text-fg border border-[var(--line)] text-xs font-semibold mb-2">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
               <span>{isBrandOrAdmin ? 'Brand Management Portal' : 'Clipper Creator Studio'}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-[#F5D5E0] flex items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-black text-fg flex items-center gap-2.5">
               {isBrandOrAdmin ? (
                 <>
-                  <Layers className="w-7 h-7 text-[#6667AB]" />
+                  <Layers className="w-7 h-7 text-[var(--accent)]" />
                   <span>Portal Pengelola Kampanye</span>
                 </>
               ) : (
                 <>
-                  <Scissors className="w-6 h-6 text-[#7B337E] -rotate-45" />
+                  <Scissors className="w-6 h-6 text-[var(--accent)] -rotate-45" />
                   <span>Clipper Studio & Tracking Hub</span>
                 </>
               )}
             </h1>
-            <p className="text-xs sm:text-sm text-[#F5D5E0]/70 mt-1">
+            <p className="text-xs sm:text-sm text-fg-muted mt-1">
               {isBrandOrAdmin
                 ? 'Kelola alokasi reward pool kampanye dan pantau sebaran klip video resmi yang digunting oleh komunitas clipper.'
                 : 'Pantau performa views klip TikTok & Reels-mu yang disinkronkan langsung via Apify Scraper Engine.'}
@@ -186,7 +190,7 @@ export default function DashboardPage() {
             {isBrandOrAdmin ? (
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 text-center flex items-center justify-center gap-2"
+                className="px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm bg-white text-black hover:bg-white/90 shadow-md text-center flex items-center justify-center gap-2 transition-all"
               >
                 <Plus className="w-4 h-4" />
                 <span>Buka Campaign Baru</span>
@@ -195,7 +199,7 @@ export default function DashboardPage() {
               <>
                 <button
                   onClick={() => setIsBioModalOpen(true)}
-                  className="px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/60 transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2.5 rounded-full text-xs font-semibold bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-fg border border-[var(--line)] transition-colors flex items-center gap-1.5"
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
                   <span>Verifikasi Akun Sosmed</span>
@@ -203,7 +207,7 @@ export default function DashboardPage() {
 
                 <a
                   href="#campaigns-list"
-                  className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 text-center flex items-center justify-center gap-2"
+                  className="px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm bg-white text-black hover:bg-white/90 shadow-md text-center flex items-center justify-center gap-2 transition-all"
                 >
                   <Flame className="w-4 h-4 text-amber-400" />
                   <span>Lihat Campaign Siap Gunting</span>
@@ -216,34 +220,34 @@ export default function DashboardPage() {
         {/* METRICS STATS CARDS */}
         {isBrandOrAdmin ? (
           /* Brand Metrics */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
-              <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Alokasi Reward Pool</span>
-              <div className="text-2xl font-black text-emerald-400">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 space-y-1.5">
+              <span className="text-xs font-medium text-fg-subtle">Total Alokasi Reward Pool</span>
+              <div className="text-2xl font-black text-emerald-400 font-mono">
                 Rp {totalRewardBudget.toLocaleString('id-ID')}
               </div>
-              <span className="text-[11px] text-[#F5D5E0]/60">Dari {campaigns.length} episode kampanye</span>
+              <span className="text-[11px] text-fg-subtle block">Dari {campaigns.length} episode kampanye</span>
             </div>
 
-            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
-              <span className="text-xs font-semibold text-[#F5D5E0]/70">Sisa Budget Tersedia</span>
-              <div className="text-2xl font-black text-amber-400">
+            <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 space-y-1.5">
+              <span className="text-xs font-medium text-fg-subtle">Sisa Budget Tersedia</span>
+              <div className="text-2xl font-black text-amber-400 font-mono">
                 Rp {totalRemainingBudget.toLocaleString('id-ID')}
               </div>
-              <span className="text-[11px] text-amber-400/80">Siap diklaim oleh kreator</span>
+              <span className="text-[11px] text-amber-400/80 block">Siap diklaim oleh kreator</span>
             </div>
 
-            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
-              <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Klip Masuk</span>
-              <div className="text-2xl font-black text-[#F5D5E0]">
+            <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 space-y-1.5">
+              <span className="text-xs font-medium text-fg-subtle">Total Klip Masuk</span>
+              <div className="text-2xl font-black text-fg font-mono">
                 {submissions.length} Klip
               </div>
-              <span className="text-[11px] text-[#F5D5E0]/60">Tersinkronisasi otomatis</span>
+              <span className="text-[11px] text-fg-subtle block">Tersinkronisasi otomatis</span>
             </div>
 
-            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
-              <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Views Didorong</span>
-              <div className="text-2xl font-black text-[#F5D5E0]">
+            <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 space-y-1.5">
+              <span className="text-xs font-medium text-fg-subtle">Total Views Didorong</span>
+              <div className="text-2xl font-black text-fg font-mono">
                 {totalViews.toLocaleString('id-ID')}
               </div>
               <span className="text-[11px] text-emerald-400 flex items-center gap-1">
@@ -253,34 +257,34 @@ export default function DashboardPage() {
           </div>
         ) : (
           /* Clipper Metrics */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#F5D5E0]/70">Saldo Dapat Ditarik</span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <span className="text-xs font-medium text-fg-subtle">Saldo Dapat Ditarik</span>
+                <div className="w-8 h-8 rounded-lg bg-[var(--cpm-soft)] text-[var(--cpm)] flex items-center justify-center">
                   <Wallet className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-emerald-400">
+              <div className="text-2xl font-black text-[var(--cpm)] font-mono">
                 Rp {(user?.balance || 0).toLocaleString('id-ID')}
               </div>
               <button
                 disabled
                 title="Fitur penarikan saldo sedang dalam pengembangan"
-                className="text-[11px] font-bold text-[#F5D5E0] underline cursor-not-allowed opacity-50"
+                className="text-[11px] font-semibold text-fg-muted underline cursor-not-allowed opacity-50 block pt-1"
               >
                 Tarik Saldo ke Rekening / E-Wallet → (Segera Hadir)
               </button>
             </div>
 
-            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+            <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Views Klip</span>
-                <div className="w-8 h-8 rounded-lg bg-[#6667AB]/20 text-[#6667AB] flex items-center justify-center">
+                <span className="text-xs font-medium text-fg-subtle">Total Views Klip</span>
+                <div className="w-8 h-8 rounded-lg bg-[var(--surface-2)] text-fg flex items-center justify-center">
                   <Eye className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-[#F5D5E0]">
+              <div className="text-2xl font-black text-fg font-mono">
                 {totalViews.toLocaleString('id-ID')}
               </div>
               <span className="text-[11px] text-emerald-400 flex items-center gap-1">
@@ -288,47 +292,47 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+            <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#F5D5E0]/70">Total Likes Klip</span>
-                <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                <span className="text-xs font-medium text-fg-subtle">Total Likes Klip</span>
+                <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-400 flex items-center justify-center">
                   <Heart className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-[#F5D5E0]">
+              <div className="text-2xl font-black text-fg font-mono">
                 {totalLikes.toLocaleString('id-ID')}
               </div>
-              <span className="text-[11px] text-[#F5D5E0]/60">Engagement organik verified</span>
+              <span className="text-[11px] text-fg-subtle block">Engagement organik verified</span>
             </div>
 
-            <div className="glass-card rounded-2xl p-5 border border-[#7B337E]/40 space-y-2">
+            <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#F5D5E0]/70">Klip Berjalan</span>
-                <div className="w-8 h-8 rounded-lg bg-[#7B337E]/30 text-[#F5D5E0] flex items-center justify-center">
+                <span className="text-xs font-medium text-fg-subtle">Klip Berjalan</span>
+                <div className="w-8 h-8 rounded-lg bg-[var(--surface-2)] text-[var(--accent)] flex items-center justify-center">
                   <Scissors className="w-4 h-4 -rotate-45" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-[#F5D5E0]">
+              <div className="text-2xl font-black text-fg font-mono">
                 {submissions.length} Klip
               </div>
-              <span className="text-[11px] text-[#F5D5E0]/60">Status: Approved & Tracking</span>
+              <span className="text-[11px] text-fg-subtle block">Status: Approved & Tracking</span>
             </div>
           </div>
         )}
 
         {/* SECTION AKUN SOSIAL MEDIA (Khusus Clipper) */}
         {!isBrandOrAdmin && (
-          <section className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
+          <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <h2 className="text-lg font-bold text-[#F5D5E0]">
-                  Akun Sosial Media Terverifikasi
+                <h2 className="text-lg font-bold text-fg">
+                  Akun Sosial Media Terhubung
                 </h2>
               </div>
               <button
                 onClick={() => setIsBioModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/60 transition-all flex items-center gap-1.5"
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-fg border border-[var(--line)] transition-all flex items-center gap-1.5"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Hubungkan Akun Baru</span>
@@ -336,14 +340,14 @@ export default function DashboardPage() {
             </div>
 
             {socialAccounts.length === 0 ? (
-              <div className="p-8 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-3">
-                <ShieldCheck className="w-8 h-8 text-[#6667AB] mx-auto" />
-                <p className="text-xs text-[#F5D5E0]/70 max-w-sm mx-auto">
+              <div className="p-8 text-center rounded-xl bg-[var(--surface-2)] border border-[var(--line)] space-y-3">
+                <ShieldCheck className="w-8 h-8 text-fg-subtle mx-auto" />
+                <p className="text-xs text-fg-muted max-w-sm mx-auto">
                   Belum ada akun sosial media (TikTok / Instagram) yang terhubung. Hubungkan akunmu untuk melacak klip dan mendapatkan komisi.
                 </p>
                 <button
                   onClick={() => setIsBioModalOpen(true)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors"
+                  className="px-4 py-2 rounded-full text-xs font-bold bg-white text-black hover:bg-white/90 transition-colors"
                 >
                   Hubungkan Akun Baru
                 </button>
@@ -353,30 +357,38 @@ export default function DashboardPage() {
                 {socialAccounts.map((acc) => (
                   <div
                     key={acc.id}
-                    className="p-4 rounded-xl bg-[#210635]/80 border border-[#7B337E]/40 flex items-center justify-between"
+                    className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#420D4B] border border-[#6667AB]/40 flex items-center justify-center font-bold uppercase text-xs text-[#F5D5E0]">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--surface-3)] border border-[var(--line)] flex items-center justify-center font-bold uppercase text-xs text-fg">
                         {acc.platform === 'tiktok' ? 'TT' : 'IG'}
                       </div>
                       <div>
-                        <span className="font-bold text-sm text-[#F5D5E0] block leading-snug">
+                        <span className="font-bold text-sm text-fg block leading-snug">
                           {acc.handle}
                         </span>
-                        <span className="text-[11px] text-[#F5D5E0]/60">
+                        <span className="text-[11px] text-fg-subtle">
                           {Number(acc.follower_count || 0).toLocaleString('id-ID')} followers
                         </span>
                       </div>
                     </div>
 
                     <div className="flex flex-col items-end">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Verified
-                      </span>
-                      <span className="text-[10px] font-mono text-[#F5D5E0]/50 mt-1">
-                        {acc.verification_code}
-                      </span>
+                      {acc.is_verified ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Verified
+                        </span>
+                      ) : (
+                        <>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                            Pending
+                          </span>
+                          <span className="text-[10px] font-mono text-fg-subtle mt-1">
+                            {acc.verification_code}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -385,19 +397,19 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* SECTION CAMPAIGN (Daftar Campaign Aktif Siap Digunting untuk Clipper / Kelola Campaign untuk Brand) */}
-        <section id="campaigns-list" className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-6">
+        {/* SECTION CAMPAIGN */}
+        <section id="campaigns-list" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Flame className="w-5 h-5 text-amber-400" />
               <div>
-                <h2 className="text-lg font-bold text-[#F5D5E0]">
+                <h2 className="text-lg font-bold text-fg">
                   {isBrandOrAdmin ? 'Daftar Kampanye Resmi Milik Brand' : 'Campaign Aktif Siap Digunting'}
                 </h2>
-                <p className="text-xs text-[#F5D5E0]/60">
+                <p className="text-xs text-fg-muted">
                   {isBrandOrAdmin
                     ? 'Kelola episode kampanye resmi dan alokasi reward pool brand Anda.'
-                    : 'Pilih episode podcast @DipanggilKeRuangan, ambil footage video, dan setor klip untuk raih komisi.'}
+                    : 'Pilih episode podcast, ambil footage video, dan setor klip untuk raih komisi.'}
                 </p>
               </div>
             </div>
@@ -405,7 +417,7 @@ export default function DashboardPage() {
             {isBrandOrAdmin && (
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] border border-[#7B337E]/60 transition-all flex items-center gap-1.5"
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-black hover:bg-white/90 transition-all flex items-center gap-1.5"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Tambah Campaign</span>
@@ -414,15 +426,15 @@ export default function DashboardPage() {
           </div>
 
           {campaigns.length === 0 ? (
-            <div className="p-8 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-2">
-              <p className="text-xs text-[#F5D5E0]/70">
+            <div className="p-8 text-center rounded-xl bg-[var(--surface-2)] border border-[var(--line)] space-y-2">
+              <p className="text-xs text-fg-muted">
                 {isBrandOrAdmin
                   ? 'Belum ada campaign yang dibuat. Klik tombol di atas untuk membuka campaign baru.'
                   : 'Belum ada campaign aktif yang tersedia saat ini.'}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {campaigns.map((camp) => {
                 const pool = Number(camp.reward_pool) || 0;
                 const rem = Number(camp.remaining_pool) || 0;
@@ -431,40 +443,40 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={camp.id}
-                    className="p-4 rounded-xl bg-[#210635]/80 border border-[#7B337E]/40 hover:border-[#6667AB] transition-all flex flex-col justify-between space-y-3 group"
+                    className="p-3.5 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] hover:border-[var(--accent-line)] transition-all flex flex-col justify-between space-y-3 group"
                   >
                     <div className="space-y-2">
-                      <div className="relative aspect-video rounded-lg overflow-hidden border border-[#7B337E]/30">
+                      <div className="relative aspect-video rounded-lg overflow-hidden bg-black border border-[var(--line)]">
                         <img
                           src={camp.thumbnail_url || `https://img.youtube.com/vi/${camp.youtube_video_id}/hqdefault.jpg`}
                           alt={camp.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-                        <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-[#210635]/90 text-[10px] font-mono text-emerald-400 font-bold">
+                        <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-[10px] font-mono text-[var(--cpm)] font-bold">
                           Rp {Number(camp.rate_per_1k_views || 0).toLocaleString('id-ID')}/1k
                         </span>
                       </div>
 
-                      <h3 className="font-bold text-xs text-[#F5D5E0] line-clamp-2 leading-snug">
+                      <h3 className="font-bold text-xs text-fg line-clamp-2 leading-snug">
                         {camp.title}
                       </h3>
 
-                      <span className="text-[11px] text-[#6667AB] block font-medium truncate">
+                      <span className="text-[11px] text-fg-subtle block font-medium truncate">
                         Guest: {camp.episode_guest || 'Spesial Guest'}
                       </span>
                     </div>
 
-                    <div className="space-y-2 pt-2 border-t border-[#7B337E]/30">
+                    <div className="space-y-2 pt-2 border-t border-[var(--line)]">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-[#F5D5E0]/60">Sisa Pool:</span>
-                        <span className="font-bold text-amber-300">
+                        <span className="text-fg-subtle">Sisa Pool:</span>
+                        <span className="font-bold text-fg">
                           Rp {rem.toLocaleString('id-ID')}
                         </span>
                       </div>
 
-                      <div className="w-full h-1.5 rounded-full bg-[#210635] overflow-hidden border border-[#7B337E]/30">
+                      <div className="w-full h-1.5 rounded-full bg-[var(--surface-3)] overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] rounded-full"
+                          className="h-full bg-[var(--accent)] rounded-full transition-all duration-500"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -472,7 +484,7 @@ export default function DashboardPage() {
                       <div className="grid grid-cols-2 gap-2 pt-1">
                         <Link
                           href={`/campaign/${camp.slug || camp.id}`}
-                          className="py-2 px-2.5 rounded-lg text-center text-[11px] font-semibold bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors flex items-center justify-center truncate"
+                          className="py-2 px-2.5 rounded-lg text-center text-[11px] font-semibold bg-[var(--surface-3)] hover:bg-white/10 text-fg transition-colors flex items-center justify-center truncate"
                         >
                           Creator Kit
                         </Link>
@@ -480,7 +492,7 @@ export default function DashboardPage() {
                         {!isBrandOrAdmin ? (
                           <button
                             onClick={() => handleOpenSubmit(camp)}
-                            className="py-2 px-2.5 rounded-lg text-center text-[11px] font-bold bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-sm hover:opacity-95 transition-opacity flex items-center justify-center gap-1"
+                            className="py-2 px-2.5 rounded-lg text-center text-[11px] font-bold bg-white text-black hover:bg-white/90 transition-all flex items-center justify-center gap-1"
                           >
                             <Scissors className="w-3 h-3 -rotate-45" />
                             <span>Setor</span>
@@ -488,7 +500,7 @@ export default function DashboardPage() {
                         ) : (
                           <Link
                             href={`/campaign/${camp.slug || camp.id}`}
-                            className="py-2 px-2.5 rounded-lg text-center text-[11px] font-bold bg-[#6667AB] hover:bg-[#7B337E] text-[#F5D5E0] transition-colors flex items-center justify-center"
+                            className="py-2 px-2.5 rounded-lg text-center text-[11px] font-bold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors flex items-center justify-center"
                           >
                             Kelola
                           </Link>
@@ -503,13 +515,13 @@ export default function DashboardPage() {
         </section>
 
         {/* SECTION RIWAYAT KLIP */}
-        <section className="glass-card rounded-2xl p-6 border border-[#7B337E]/40 space-y-4">
+        <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-[#F5D5E0]">
+              <h2 className="text-lg font-bold text-fg">
                 {isBrandOrAdmin ? 'Setoran Klip Masuk dari Seluruh Komunitas' : 'Riwayat Setoran Klip Video Kamu'}
               </h2>
-              <p className="text-xs text-[#F5D5E0]/60">
+              <p className="text-xs text-fg-muted">
                 {isBrandOrAdmin
                   ? 'Klip video yang diposting oleh para clipper di media sosial untuk mempromosikan episode podcast Anda.'
                   : 'Daftar video yang telah kamu setor beserta update views dan komisi terkini.'}
@@ -518,9 +530,9 @@ export default function DashboardPage() {
           </div>
 
           {submissions.length === 0 ? (
-            <div className="p-8 text-center rounded-2xl bg-[#210635]/60 border border-[#7B337E]/30 space-y-3">
-              <Scissors className="w-8 h-8 text-[#6667AB] mx-auto -rotate-45" />
-              <p className="text-xs text-[#F5D5E0]/70 max-w-sm mx-auto">
+            <div className="p-8 text-center rounded-xl bg-[var(--surface-2)] border border-[var(--line)] space-y-3">
+              <Scissors className="w-8 h-8 text-fg-subtle mx-auto -rotate-45" />
+              <p className="text-xs text-fg-muted max-w-sm mx-auto">
                 {isBrandOrAdmin
                   ? 'Belum ada clipper yang menyetor klip ke kampanye Anda saat ini.'
                   : 'Kamu belum menyetor video klip apapun. Pilih episode di atas untuk mulai memotong dan menyetor klip.'}
@@ -530,7 +542,7 @@ export default function DashboardPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-[#7B337E]/40 text-[#F5D5E0]/60 uppercase tracking-wider text-[10px]">
+                  <tr className="border-b border-[var(--line)] text-fg-subtle uppercase tracking-wider text-[10px]">
                     <th className="py-3 px-4">Video / Episode</th>
                     {isBrandOrAdmin && <th className="py-3 px-4">Clipper</th>}
                     <th className="py-3 px-4">Platform</th>
@@ -541,21 +553,21 @@ export default function DashboardPage() {
                     <th className="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#7B337E]/20">
+                <tbody className="divide-y divide-[var(--line)]">
                   {submissions.map((sub: any) => (
-                    <tr key={sub.id} className="hover:bg-[#420D4B]/30 transition-colors">
-                      <td className="py-4 px-4 font-medium text-[#F5D5E0]">
+                    <tr key={sub.id} className="hover:bg-[var(--surface-2)] transition-colors">
+                      <td className="py-3.5 px-4 font-medium text-fg">
                         <div className="flex items-center gap-3">
                           <img
                             src={sub.thumbnail_url || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=200'}
                             alt="thumbnail"
-                            className="w-12 h-12 rounded-lg object-cover border border-[#7B337E]/40 shrink-0"
+                            className="w-12 h-12 rounded-lg object-cover border border-[var(--line)] shrink-0"
                           />
                           <div className="max-w-xs">
-                            <span className="font-bold block truncate">
+                            <span className="font-bold block truncate text-fg">
                               {sub.campaign?.title || 'Episode Kampanye'}
                             </span>
-                            <span className="text-[11px] text-[#6667AB] block truncate">
+                            <span className="text-[11px] text-fg-subtle block truncate">
                               Guest: {sub.campaign?.episode_guest || 'Spesial Guest'}
                             </span>
                           </div>
@@ -563,49 +575,49 @@ export default function DashboardPage() {
                       </td>
 
                       {isBrandOrAdmin && (
-                        <td className="py-4 px-4 font-semibold text-[#F5D5E0]">
+                        <td className="py-3.5 px-4 font-semibold text-fg">
                           @{sub.clipper?.username || 'clipper'}
                         </td>
                       )}
 
-                      <td className="py-4 px-4 font-bold uppercase text-[11px] text-[#F5D5E0]/80">
+                      <td className="py-3.5 px-4 font-bold uppercase text-[11px] text-fg-muted">
                         {sub.platform}
                       </td>
 
-                      <td className="py-4 px-4 font-mono font-bold text-emerald-400">
+                      <td className="py-3.5 px-4 font-mono font-bold text-[var(--cpm)]">
                         {Number(sub.current_views || 0).toLocaleString('id-ID')}
                       </td>
 
-                      <td className="py-4 px-4 font-mono text-[#F5D5E0]/70">
+                      <td className="py-3.5 px-4 font-mono text-fg-muted">
                         {Number(sub.current_likes || 0).toLocaleString('id-ID')}
                       </td>
 
-                      <td className="py-4 px-4 font-mono font-bold text-emerald-300">
+                      <td className="py-3.5 px-4 font-mono font-bold text-[var(--cpm)]">
                         Rp {Number(sub.earnings || 0).toLocaleString('id-ID')}
                       </td>
 
-                      <td className="py-4 px-4">
+                      <td className="py-3.5 px-4">
                         <span
-                          className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
                             sub.status === 'approved'
-                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                               : sub.status === 'pending'
-                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                               : sub.status === 'rejected'
-                              ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                              : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                              ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                              : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                           }`}
                         >
                           {sub.status}
                         </span>
                       </td>
 
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right">
                         <a
                           href={sub.post_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#420D4B] hover:bg-[#7B337E] text-[#F5D5E0] text-[11px] font-semibold transition-colors"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-fg text-[11px] font-semibold border border-[var(--line)] transition-colors"
                         >
                           <span>Lihat Video</span>
                           <ExternalLink className="w-3 h-3" />

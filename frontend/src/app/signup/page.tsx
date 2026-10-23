@@ -17,6 +17,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,14 +25,18 @@ export default function SignupPage() {
 
     setLoading(true);
     setErrorMessage(null);
+    setNoticeMessage(null);
 
     const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
 
-    // Seluruh registrasi publik otomatis berstatus Clipper / Creator
     const res = await signUp(email, password, cleanUsername, fullName || cleanUsername, 'clipper');
     setLoading(false);
 
-    if (res.success) {
+    if (res.success && res.needsEmailConfirmation) {
+      setNoticeMessage(
+        'Akun berhasil dibuat. Cek email kamu untuk konfirmasi sebelum masuk.'
+      );
+    } else if (res.success) {
       router.push('/dashboard');
     } else {
       setErrorMessage(res.error || 'Pendaftaran gagal. Silakan coba kembali.');
@@ -39,48 +44,51 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
-      {/* Background Neon Glows */}
-      <div className="absolute top-1/4 -right-32 w-96 h-96 bg-[#7B337E]/25 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -left-32 w-96 h-96 bg-[#6667AB]/20 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="min-h-screen surface-app flex flex-col justify-center items-center px-4 py-12 relative antialiased">
       {/* Brand Header */}
-      <div className="mb-8 text-center space-y-2">
-        <Link href="/" className="inline-flex items-center gap-2.5 group">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#7B337E] to-[#6667AB] flex items-center justify-center shadow-moon-glow group-hover:scale-105 transition-transform">
-            <Scissors className="w-6 h-6 text-[#F5D5E0] -rotate-45" />
+      <div className="mb-6 text-center space-y-2">
+        <Link href="/" className="inline-flex items-center gap-2 group">
+          <div className="w-10 h-10 rounded-full bg-[var(--accent)] flex items-center justify-center group-hover:scale-105 transition-transform">
+            <Scissors className="w-5 h-5 text-white -rotate-45" />
           </div>
-          <span className="text-2xl font-black tracking-tight text-[#F5D5E0]">
-            klipzz<span className="text-[#6667AB]">.vid</span>
+          <span className="text-xl font-bold tracking-tight text-fg">
+            klipzz<span className="text-[var(--accent)]">.vid</span>
           </span>
         </Link>
-        <p className="text-xs text-[#F5D5E0]/70">
+        <p className="text-xs text-fg-muted">
           Buat Akun & Mulai Menghasilkan dari Konten Klip Video
         </p>
       </div>
 
       {/* Signup Card */}
-      <div className="w-full max-w-lg glass-card rounded-3xl p-6 sm:p-8 border border-[#7B337E]/50 shadow-moon-glow space-y-6">
+      <div className="w-full max-w-lg rounded-2xl p-6 sm:p-8 bg-[var(--surface)] border border-[var(--line)] shadow-xl space-y-6">
         <div>
-          <h1 className="text-2xl font-black text-[#F5D5E0]">
+          <h1 className="text-2xl font-bold text-fg">
             Daftar Akun Clipper
           </h1>
-          <p className="text-xs text-[#F5D5E0]/70 mt-1">
+          <p className="text-xs text-fg-muted mt-1">
             Mulai potong video, upload ke medsos, dan cairkan komisimu.
           </p>
         </div>
 
         {errorMessage && (
-          <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {noticeMessage && (
+          <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{noticeMessage}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-fg-muted mb-1.5">
                 Nama Lengkap
               </label>
               <div className="relative">
@@ -89,15 +97,15 @@ export default function SignupPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Fajar Ramadhan"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#210635] border border-[#7B337E]/60 text-[#F5D5E0] placeholder-[#F5D5E0]/40 text-sm focus:outline-none focus:border-[#6667AB]"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] text-fg placeholder:text-fg-subtle text-sm focus:outline-none focus:border-[var(--accent)]"
                   required
                 />
-                <User className="w-4 h-4 text-[#F5D5E0]/40 absolute left-3.5 top-3.5" />
+                <User className="w-4 h-4 text-fg-subtle absolute left-3.5 top-3" />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-fg-muted mb-1.5">
                 Username
               </label>
               <input
@@ -105,14 +113,14 @@ export default function SignupPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="fajar_clipper"
-                className="w-full px-4 py-3 rounded-xl bg-[#210635] border border-[#7B337E]/60 text-[#F5D5E0] placeholder-[#F5D5E0]/40 text-sm focus:outline-none focus:border-[#6667AB]"
+                className="w-full px-4 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] text-fg placeholder:text-fg-subtle text-sm focus:outline-none focus:border-[var(--accent)]"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-fg-muted mb-1.5">
               Email
             </label>
             <div className="relative">
@@ -121,15 +129,15 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nama@email.com"
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#210635] border border-[#7B337E]/60 text-[#F5D5E0] placeholder-[#F5D5E0]/40 text-sm focus:outline-none focus:border-[#6667AB]"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] text-fg placeholder:text-fg-subtle text-sm focus:outline-none focus:border-[var(--accent)]"
                 required
               />
-              <Mail className="w-4 h-4 text-[#F5D5E0]/40 absolute left-3.5 top-3.5" />
+              <Mail className="w-4 h-4 text-fg-subtle absolute left-3.5 top-3" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-fg-muted mb-1.5">
               Kata Sandi
             </label>
             <div className="relative">
@@ -138,15 +146,15 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimal 6 karakter"
-                className="w-full pl-10 pr-10 py-3 rounded-xl bg-[#210635] border border-[#7B337E]/60 text-[#F5D5E0] placeholder-[#F5D5E0]/40 text-sm focus:outline-none focus:border-[#6667AB]"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] text-fg placeholder:text-fg-subtle text-sm focus:outline-none focus:border-[var(--accent)]"
                 required
                 minLength={6}
               />
-              <Lock className="w-4 h-4 text-[#F5D5E0]/40 absolute left-3.5 top-3.5" />
+              <Lock className="w-4 h-4 text-fg-subtle absolute left-3.5 top-3" />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-3.5 text-[#F5D5E0]/40 hover:text-[#F5D5E0]"
+                className="absolute right-3.5 top-3 text-fg-subtle hover:text-fg"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -156,11 +164,11 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 flex items-center justify-center gap-2 disabled:opacity-50 transition-opacity"
+            className="w-full py-3 px-4 rounded-full font-semibold text-sm bg-white text-black hover:bg-white/90 shadow-md flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                 <span>Mendaftarkan Akun...</span>
               </>
             ) : (
@@ -172,9 +180,9 @@ export default function SignupPage() {
           </button>
         </form>
 
-        <div className="text-center text-xs text-[#F5D5E0]/70 pt-2 border-t border-[#7B337E]/30">
+        <div className="text-center text-xs text-fg-muted pt-2 border-t border-[var(--line)]">
           Sudah memiliki akun?{' '}
-          <Link href="/login" className="font-bold text-[#6667AB] hover:text-[#F5D5E0] underline">
+          <Link href="/login" className="font-semibold text-white hover:underline">
             Masuk di Sini
           </Link>
         </div>

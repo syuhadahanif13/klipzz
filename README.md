@@ -67,10 +67,16 @@ klipzz_vid/
 
 ### A. Database Setup (Supabase)
 1. Buat project baru di Supabase.
-2. Buka SQL Editor dan eksekusi skrip:
+2. Buka SQL Editor dan eksekusi skrip **secara berurutan**:
    - `supabase/migrations/20261021_init_schema.sql`
-   - `supabase/seed.sql`
+   - `supabase/migrations/20261023_security_hardening.sql`
+   - `supabase/seed.sql` (opsional, hanya untuk data demo)
 3. Salin `SUPABASE_URL`, `SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY` ke `.env`.
+   `SUPABASE_SERVICE_ROLE_KEY` **wajib** berisi service role secret asli (bukan anon/publishable key).
+4. Migrasi hardening mengaktifkan RLS, mencabut write langsung dari client, dan menyembunyikan
+   `profiles.balance`/`profiles.email`. Frontend hanya membaca lewat kolom yang diizinkan dan
+   RPC `get_my_profile()`; semua penulisan sensitif harus lewat backend API.
+5. Jangan jalankan ulang migrasi `init_schema` di database produksi yang sudah berisi data.
 
 ### B. Menjalankan Backend & Worker
 ```bash
@@ -102,3 +108,22 @@ cp .env.example .env
 docker compose up -d --build
 ```
 Semua kontainer (`klipzz_frontend`, `klipzz_backend`, `klipzz_worker`) akan aktif secara mandiri di server Anda.
+
+Catatan deployment:
+- `NEXT_PUBLIC_API_URL` harus URL API yang bisa diakses **browser** (contoh: `https://api.domain.com/api`),
+  bukan hostname internal Docker seperti `http://backend:4000/api`.
+- `NEXT_PUBLIC_*` dibaca saat build, jadi isi lewat build args / environment sebelum `docker compose build`.
+- Isi `CORS_ORIGIN` dengan origin frontend (dipisah koma jika lebih dari satu).
+- Biarkan `ALLOW_SIMULATION=false` di produksi; worker akan gagal/skip alih-alih membuat metrik palsu.
+
+---
+
+## 🔐 7. Keamanan & Rotasi Secret
+- Semua penulisan campaign, submission, dan verifikasi akun sosial dilakukan oleh backend dengan
+  token Supabase pengguna; backend memakai service role dan tidak mempercayai `user_id` dari body/query.
+- Jangan pernah menaruh `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, atau `APIFY_API_TOKEN` di
+  `frontend/.env.local` atau variabel `NEXT_PUBLIC_*`.
+- Jika secret pernah ter-commit atau terkirim di chat: rotasi service role key, database password,
+  dan Apify token di dashboard masing-masing, lalu perbarui `.env` server.
+- Ganti password akun seed (`admin`, `clipper_hans`) sebelum dipakai di produksi, atau buat akun baru
+  lewat halaman signup. Role `admin` tidak dapat dibuat dari signup publik.

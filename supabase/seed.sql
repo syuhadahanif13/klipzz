@@ -38,6 +38,7 @@ ON CONFLICT (platform, handle) DO NOTHING;
 INSERT INTO public.campaigns (
     id,
     brand_id,
+    slug,
     title,
     description,
     source_youtube_url,
@@ -56,6 +57,7 @@ INSERT INTO public.campaigns (
 (
     'c1111111-1111-1111-1111-111111111111',
     '11111111-1111-1111-1111-111111111111',
+    'gara-gara-abdur-mamat-alkatiri-udah-gamau-main-film-lagi',
     'GARA GARA ABDUR, MAMAT ALKATIRI UDAH GAMAU MAIN FILM LAGI!',
     'Potong momen adu argumen kocak antara Abdur Arsyad dan Mamat Alkatiri saat diinterogasi Arif Brata & Dara Sarasvati. Fokus pada ekspresi panik Mamat dan satir pedas Abdur!',
     'https://www.youtube.com/watch?v=DHiELGxnAS4',
@@ -74,6 +76,7 @@ INSERT INTO public.campaigns (
 (
     'c2222222-2222-2222-2222-222222222222',
     '11111111-1111-1111-1111-111111111111',
+    'perubahan-dodit-mulyanto-bikin-laura-moane-bertanya-tanya',
     'PERUBAHAN DODIT MULYANTO BIKIN LAURA MOANE BERTANYA-TANYA',
     'Kekocakan Dodit Mulyanto menceritakan kehidupan rumah hutan dan kisah asmara bersama Laura Moane. Respon polos Laura dan reaksi Arif Brata sangat renyah untuk dipotong!',
     'https://www.youtube.com/watch?v=zsgmqtmmNU8',
@@ -92,6 +95,7 @@ INSERT INTO public.campaigns (
 (
     'c3333333-3333-3333-3333-333333333333',
     '11111111-1111-1111-1111-111111111111',
+    'duo-bahlul-ternyata-seorang-duo-yang-jarang-nongkrong-bareng',
     'DUO BAHLUL TERNYATA SEORANG DUO YANG JARANG NONGKRONG BARENG',
     'Sahil & Kamal (Duo Bahlul) membongkar rahasia dapur persahabatan mereka di hadapan Arif Brata & Dara Sarasvati. Chemistry kocak saat siaran ternyata beda 180 derajat di tongkrongan!',
     'https://www.youtube.com/watch?v=seoLT0fYtOg',
@@ -110,6 +114,7 @@ INSERT INTO public.campaigns (
 (
     'c4444444-4444-4444-4444-444444444444',
     '11111111-1111-1111-1111-111111111111',
+    'aldi-taher-cerita-master-saiful-datang-di-waktu-yang-tepat',
     'ALDI TAHER CERITA MASTER SAIFUL DATANG DI WAKTU YANG TEPAT!',
     'Kisah absurd nan inspiratif dari Aldi Taher yang bikin Arif Brata & Dara Sarasvati tepuk jidat berkali-kali. Komedi spontanitas tiada tanding!',
     'https://www.youtube.com/watch?v=MW_1Cxlrq90',
@@ -126,6 +131,7 @@ INSERT INTO public.campaigns (
     'active'
 )
 ON CONFLICT (id) DO UPDATE SET
+    slug = EXCLUDED.slug,
     title = EXCLUDED.title,
     description = EXCLUDED.description,
     source_youtube_url = EXCLUDED.source_youtube_url,
@@ -136,6 +142,10 @@ ON CONFLICT (id) DO UPDATE SET
     remaining_pool = EXCLUDED.remaining_pool;
 
 -- 4. SUBMISSIONS
+-- Seed rows already include their final earnings and profile balances. Disable
+-- user triggers so the earnings trigger does not credit the seed twice.
+ALTER TABLE public.submissions DISABLE TRIGGER USER;
+
 INSERT INTO public.submissions (
     id,
     campaign_id,
@@ -191,3 +201,5 @@ INSERT INTO public.submissions (
     now() - interval '45 minutes'
 )
 ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.submissions ENABLE TRIGGER USER;

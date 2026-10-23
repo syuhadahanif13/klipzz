@@ -28,25 +28,24 @@ export function BottomNav({ onOpenSubmit }: BottomNavProps) {
   const isCampaign = pathname?.startsWith('/campaign');
   const isAuthPage = pathname === '/login' || pathname === '/signup';
 
-  // Sembunyikan bottom nav di halaman login dan registrasi
   if (isAuthPage) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#210635]/95 backdrop-blur-2xl border-t border-[#7B337E]/40 shadow-[0_-8px_25px_rgba(33,6,53,0.8)] px-2 pt-1 pb-[calc(env(safe-area-inset-bottom)+8px)] transition-all">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[var(--surface)]/95 backdrop-blur-xl border-t border-[var(--line)] px-2 pt-1 pb-[calc(env(safe-area-inset-bottom)+8px)] transition-all">
       <div className="max-w-md mx-auto flex items-center justify-around relative">
         {/* TAB 1: BERANDA */}
         <Link
           href="/"
           className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
             isHome && !isCampaign
-              ? 'text-[#F5D5E0] font-bold'
-              : 'text-[#F5D5E0]/60 hover:text-[#F5D5E0]'
+              ? 'text-fg font-bold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
           <div className="relative">
             <Home className="w-5 h-5 transition-transform active:scale-90" />
             {isHome && !isCampaign && (
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] shadow-sm" />
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
             )}
           </div>
           <span className="text-[10px] mt-1 tracking-tight">Beranda</span>
@@ -57,36 +56,35 @@ export function BottomNav({ onOpenSubmit }: BottomNavProps) {
           href="/#campaigns-section"
           className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
             isCampaign
-              ? 'text-[#F5D5E0] font-bold'
-              : 'text-[#F5D5E0]/60 hover:text-[#F5D5E0]'
+              ? 'text-fg font-bold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
           <div className="relative">
-            <Flame className="w-5 h-5 transition-transform active:scale-90 text-[#6667AB]" />
+            <Flame className="w-5 h-5 transition-transform active:scale-90" />
             {isCampaign && (
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] shadow-sm" />
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
             )}
           </div>
           <span className="text-[10px] mt-1 tracking-tight">Campaign</span>
         </Link>
 
         {/* TAB 3: TOMBOL UTAMA (GUNTING / SETOR KLIP) */}
-        <div className="relative -top-4 flex flex-col items-center">
+        <div className="relative -top-3.5 flex flex-col items-center">
           <button
             onClick={() => {
               if (onOpenSubmit) {
                 onOpenSubmit();
               } else {
-                // Alihkan ke daftar campaign tanpa hard reload browser
                 router.push('/#campaigns-section');
               }
             }}
-            className="w-14 h-14 p-3.5 rounded-full bg-gradient-to-tr from-[#7B337E] via-[#6667AB] to-[#F5D5E0] text-white shadow-[0_4px_20px_rgba(123,51,126,0.6)] border-2 border-[#210635] flex items-center justify-center hover:scale-105 active:scale-95 transition-all group"
+            className="w-14 h-14 p-3.5 rounded-full bg-white text-black shadow-lg border border-[var(--line)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all group"
             aria-label="Setor Klip"
           >
-            <Scissors className="w-6 h-6 -rotate-45 text-white drop-shadow group-hover:rotate-0 transition-transform" />
+            <Scissors className="w-5 h-5 -rotate-45 text-black group-hover:rotate-0 transition-transform" />
           </button>
-          <span className="text-[10px] font-bold text-[#F5D5E0] mt-0.5 tracking-tight">
+          <span className="text-[10px] font-bold text-fg mt-0.5 tracking-tight">
             Klip
           </span>
         </div>
@@ -96,14 +94,14 @@ export function BottomNav({ onOpenSubmit }: BottomNavProps) {
           href="/leaderboard"
           className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
             isLeaderboard
-              ? 'text-[#F5D5E0] font-bold'
-              : 'text-[#F5D5E0]/60 hover:text-[#F5D5E0]'
+              ? 'text-fg font-bold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
           <div className="relative">
             <Trophy className="w-5 h-5 transition-transform active:scale-90 text-amber-400" />
             {isLeaderboard && (
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] shadow-sm" />
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
             )}
           </div>
           <span className="text-[10px] mt-1 tracking-tight">Top Rank</span>
@@ -114,20 +112,20 @@ export function BottomNav({ onOpenSubmit }: BottomNavProps) {
           href={user ? '/dashboard' : '/login'}
           className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
             isDashboard
-              ? 'text-[#F5D5E0] font-bold'
-              : 'text-[#F5D5E0]/60 hover:text-[#F5D5E0]'
+              ? 'text-fg font-bold'
+              : 'text-fg-muted hover:text-fg'
           }`}
         >
           <div className="relative">
             {user ? (
-              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#7B337E] to-[#6667AB] flex items-center justify-center text-[10px] font-bold text-white border border-[#F5D5E0]/40">
+              <div className="w-5 h-5 rounded-full bg-[var(--accent)] flex items-center justify-center text-[10px] font-bold text-white border border-[var(--line)]">
                 {(user?.username || 'U').slice(0, 1).toUpperCase()}
               </div>
             ) : (
               <User className="w-5 h-5 transition-transform active:scale-90" />
             )}
             {isDashboard && (
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-[#7B337E] to-[#6667AB] shadow-sm" />
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
             )}
           </div>
           <span className="text-[10px] mt-1 tracking-tight">

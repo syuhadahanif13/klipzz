@@ -1,7 +1,23 @@
 import pg from 'pg';
 
+const connectionString = process.env.DATABASE_URL;
+const adminPass = process.env.ADMIN_SEED_PASSWORD;
+const hansPass = process.env.CLIPPER_SEED_PASSWORD;
+
+if (!connectionString) {
+  console.error('DATABASE_URL is required. Export it before running this script.');
+  process.exit(1);
+}
+
+if (!adminPass || !hansPass) {
+  console.error(
+    'ADMIN_SEED_PASSWORD and CLIPPER_SEED_PASSWORD are required. Export them before running this script.'
+  );
+  process.exit(1);
+}
+
 const pool = new pg.Pool({
-  connectionString: 'postgresql://postgres.dnytjjvkmtvbagitwlax:06p3FyODWzf28mtN@aws-0-ap-south-1.pooler.supabase.com:6543/postgres',
+  connectionString,
   ssl: { rejectUnauthorized: false }
 });
 
@@ -9,10 +25,9 @@ async function main() {
   console.log('Connecting to Supabase PostgreSQL database...');
   await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
 
-  // 1. Account: admin | psswd: m@juterusrajaemas
+  // 1. Account: admin (password from ADMIN_SEED_PASSWORD)
   const adminId = '11111111-1111-1111-1111-111111111111';
   const adminEmail = 'admin@klipzz.vid';
-  const adminPass = 'm@juterusrajaemas';
 
   console.log('Configuring account: admin...');
   await pool.query(
@@ -48,10 +63,9 @@ async function main() {
     [adminId]
   );
 
-  // 2. Account: clipper_hans | psswd: KramatRaya45.
+  // 2. Account: clipper_hans (password from CLIPPER_SEED_PASSWORD)
   const hansId = '55555555-5555-5555-5555-555555555555';
   const hansEmail = 'clipper_hans@klipzz.vid';
-  const hansPass = 'KramatRaya45.';
 
   console.log('Configuring account: clipper_hans...');
   await pool.query(

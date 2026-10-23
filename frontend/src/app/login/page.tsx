@@ -36,54 +36,50 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#210635] text-[#F5D5E0] flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
-      {/* Background Neon Ambient Glows */}
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#7B337E]/25 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-[#6667AB]/20 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="min-h-screen surface-app flex flex-col justify-center items-center px-4 py-12 relative antialiased">
       {/* Brand Header */}
-      <div className="mb-8 text-center space-y-2">
-        <Link href="/" className="inline-flex items-center gap-2.5 group">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#7B337E] to-[#6667AB] flex items-center justify-center shadow-moon-glow group-hover:scale-105 transition-transform">
-            <Scissors className="w-6 h-6 text-[#F5D5E0] -rotate-45" />
+      <div className="mb-6 text-center space-y-2">
+        <Link href="/" className="inline-flex items-center gap-2 group">
+          <div className="w-10 h-10 rounded-full bg-[var(--accent)] flex items-center justify-center group-hover:scale-105 transition-transform">
+            <Scissors className="w-5 h-5 text-white -rotate-45" />
           </div>
-          <span className="text-2xl font-black tracking-tight text-[#F5D5E0]">
-            klipzz<span className="text-[#6667AB]">.vid</span>
+          <span className="text-xl font-bold tracking-tight text-fg">
+            klipzz<span className="text-[var(--accent)]">.vid</span>
           </span>
         </Link>
-        <p className="text-xs text-[#F5D5E0]/70">
+        <p className="text-xs text-fg-muted">
           Official Clipping Platform • @DipanggilKeRuangan Hub
         </p>
       </div>
 
       {/* Login Card */}
-      <div className="w-full max-w-md glass-card rounded-3xl p-6 sm:p-8 border border-[#7B337E]/50 shadow-moon-glow space-y-6">
+      <div className="w-full max-w-md rounded-2xl p-6 sm:p-8 bg-[var(--surface)] border border-[var(--line)] shadow-xl space-y-6">
         <div>
-          <h1 className="text-2xl font-black text-[#F5D5E0]">
+          <h1 className="text-2xl font-bold text-fg">
             Masuk ke Akun
           </h1>
-          <p className="text-xs text-[#F5D5E0]/70 mt-1">
+          <p className="text-xs text-fg-muted mt-1">
             Gunakan kredensial akun terdaftar untuk mengakses platform.
           </p>
         </div>
 
         {errorMessage && (
-          <div className="p-3.5 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-300 text-xs flex items-center gap-2.5 shadow-sm">
+          <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {infoMessage && (
-          <div className="p-3.5 rounded-xl bg-[#6667AB]/20 border border-[#6667AB]/50 text-[#F5D5E0] text-xs flex items-center gap-2.5 shadow-sm">
-            <AlertCircle className="w-4 h-4 shrink-0 text-[#6667AB]" />
+          <div className="p-3.5 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] text-fg-muted text-xs flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-[var(--accent)]" />
             <span>{infoMessage}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-fg-muted mb-1.5">
               Username atau Email
             </label>
             <div className="relative">
@@ -92,22 +88,22 @@ export default function LoginPage() {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="nama@email.com atau username"
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#210635] border border-[#7B337E]/60 text-[#F5D5E0] placeholder-[#F5D5E0]/40 text-sm focus:outline-none focus:border-[#6667AB] transition-colors"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] text-fg placeholder:text-fg-subtle text-sm focus:outline-none focus:border-[var(--accent)] transition-colors"
                 required
               />
-              <User className="w-4 h-4 text-[#F5D5E0]/40 absolute left-3.5 top-3.5" />
+              <User className="w-4 h-4 text-fg-subtle absolute left-3.5 top-3" />
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-[#F5D5E0]/80 uppercase tracking-wider">
+              <label className="text-xs font-semibold text-fg-muted">
                 Kata Sandi
               </label>
               <button
                 type="button"
                 onClick={() => setInfoMessage('Untuk reset kata sandi, hubungi admin komunitas resmi di info@klipzz.vid atau via grup komunitas.')}
-                className="text-[11px] text-[#6667AB] hover:underline cursor-pointer"
+                className="text-[11px] text-[var(--accent)] hover:underline cursor-pointer"
               >
                 Lupa sandi?
               </button>
@@ -118,14 +114,14 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-10 py-3 rounded-xl bg-[#210635] border border-[#7B337E]/60 text-[#F5D5E0] placeholder-[#F5D5E0]/40 text-sm focus:outline-none focus:border-[#6667AB] transition-colors"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] text-fg placeholder:text-fg-subtle text-sm focus:outline-none focus:border-[var(--accent)] transition-colors"
                 required
               />
-              <Lock className="w-4 h-4 text-[#F5D5E0]/40 absolute left-3.5 top-3.5" />
+              <Lock className="w-4 h-4 text-fg-subtle absolute left-3.5 top-3" />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-3.5 text-[#F5D5E0]/40 hover:text-[#F5D5E0]"
+                className="absolute right-3.5 top-3 text-fg-subtle hover:text-fg"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -135,11 +131,11 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-[#7B337E] to-[#6667AB] text-[#F5D5E0] shadow-moon-glow hover:opacity-95 flex items-center justify-center gap-2 disabled:opacity-50 transition-opacity"
+            className="w-full py-3 px-4 rounded-full font-semibold text-sm bg-white text-black hover:bg-white/90 shadow-md flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                 <span>Memproses Masuk...</span>
               </>
             ) : (
@@ -152,9 +148,9 @@ export default function LoginPage() {
         </form>
 
         {/* Footer Link */}
-        <div className="text-center text-xs text-[#F5D5E0]/70 pt-2 border-t border-[#7B337E]/30">
+        <div className="text-center text-xs text-fg-muted pt-2 border-t border-[var(--line)]">
           Belum punya akun?{' '}
-          <Link href="/signup" className="font-bold text-[#6667AB] hover:text-[#F5D5E0] underline">
+          <Link href="/signup" className="font-semibold text-white hover:underline">
             Daftar Sekarang
           </Link>
         </div>

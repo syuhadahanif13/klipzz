@@ -4,10 +4,14 @@ import path from 'path';
 
 const { Pool } = pg;
 
-// Koneksi pooler PostgreSQL Supabase (region ap-south-1)
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.dnytjjvkmtvbagitwlax:06p3FyODWzf28mtN@aws-0-ap-south-1.pooler.supabase.com:6543/postgres';
+const connectionString = process.env.DATABASE_URL;
 
-console.log('Connecting to Supabase PostgreSQL at aws-0-ap-south-1.pooler.supabase.com:6543...');
+if (!connectionString) {
+  console.error('DATABASE_URL is required. Set it in backend/.env or the environment.');
+  process.exit(1);
+}
+
+console.log('Connecting to Supabase PostgreSQL via DATABASE_URL...');
 
 const pool = new Pool({
   connectionString,

@@ -7,12 +7,11 @@ export const metadata: Metadata = {
   description: 'Platform clipping campaign menghubungkan channel YouTube DiPanggil ke Ruangan dengan para clipper konten komedi TikTok & Instagram Reels.',
 };
 
-// Buang maximumScale biar bisa pinch-to-zoom untuk aksesibilitas
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#210635',
+  themeColor: '#0d0d0d',
 };
 
 export default function RootLayout({
@@ -21,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className="dark">
-      <body className="min-h-screen bg-[#210635] text-[#F5D5E0] antialiased selection:bg-[#7B337E] selection:text-[#F5D5E0]">
+    <html lang="id" className="dark h-full">
+      <body className="surface-app min-h-full antialiased">
         <AuthProvider>
           {children}
         </AuthProvider>
