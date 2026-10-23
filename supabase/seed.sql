@@ -27,12 +27,9 @@ ON CONFLICT (id) DO UPDATE SET
     balance = EXCLUDED.balance,
     total_earned = EXCLUDED.total_earned;
 
--- 2. VERIFIED SOCIAL ACCOUNTS
-INSERT INTO public.social_accounts (id, user_id, platform, handle, profile_url, verification_code, verification_expires_at, is_verified, verified_at, follower_count)
-VALUES 
-    ('a1111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'tiktok', '@fajar.ngelipzz', 'https://tiktok.com/@fajar.ngelipzz', 'KLIPZZ-89A2', now() - interval '2 days', true, now() - interval '2 days', 145000),
-    ('a2222222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222', 'instagram', '@fajar_reelsfunny', 'https://instagram.com/fajar_reelsfunny', 'KLIPZZ-90B1', now() - interval '3 days', true, now() - interval '3 days', 89000)
-ON CONFLICT (platform, handle) DO NOTHING;
+-- 2. SOCIAL ACCOUNTS
+-- Intentionally empty: verified accounts must be created by real users through
+-- the Bio Code Challenge flow. Never seed demo/fake verified accounts here.
 
 -- 3. CAMPAIGNS (Real Video IDs from @DipanggilKeRuangan)
 INSERT INTO public.campaigns (

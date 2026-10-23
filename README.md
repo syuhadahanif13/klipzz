@@ -110,9 +110,10 @@ docker compose up -d --build
 Semua kontainer (`klipzz_frontend`, `klipzz_backend`, `klipzz_worker`) akan aktif secara mandiri di server Anda.
 
 Catatan deployment:
-- `NEXT_PUBLIC_API_URL` harus URL API yang bisa diakses **browser** (contoh: `https://api.domain.com/api`),
-  bukan hostname internal Docker seperti `http://backend:4000/api`.
-- `NEXT_PUBLIC_*` dibaca saat build, jadi isi lewat build args / environment sebelum `docker compose build`.
+- Default production memakai **same-origin** `/api`: browser memanggil `https://domain-kamu/api`, lalu Next.js mem-proxy ke `API_PROXY_TARGET` (default `http://127.0.0.1:4000`). Backend tidak perlu diekspos ke internet.
+- Jika backend berjalan di host/port lain, set `API_PROXY_TARGET` (contoh: `http://127.0.0.1:4100`). Di Docker Compose nilainya otomatis `http://backend:4000`.
+- Alternatif: set `NEXT_PUBLIC_API_URL` ke URL API publik yang bisa diakses browser (contoh `https://api.domain.com/api`). Jangan pernah memakai `localhost` untuk build produksi.
+- `NEXT_PUBLIC_*` dibaca saat build, jadi isi lewat build args / environment sebelum build/deploy.
 - Isi `CORS_ORIGIN` dengan origin frontend (dipisah koma jika lebih dari satu).
 - Biarkan `ALLOW_SIMULATION=false` di produksi; worker akan gagal/skip alih-alih membuat metrik palsu.
 
