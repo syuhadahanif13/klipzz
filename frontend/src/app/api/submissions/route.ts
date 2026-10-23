@@ -10,11 +10,16 @@ export const maxDuration = 300;
 
 type SupportedPlatform = 'tiktok' | 'instagram';
 
+// Postgres accepts any canonical UUID, but Zod's .uuid() also enforces RFC
+// version/variant bits. Legacy seed campaigns use IDs that are valid UUIDs for
+// Postgres but fail that stricter check, so validate the canonical shape only.
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const submitSchema = z.object({
-  campaignId: z.string().uuid(),
-  socialAccountId: z.string().uuid({
-    message: 'A verified social account is required before submitting a clip.',
-  }),
+  campaignId: z.string().regex(uuidPattern, 'Invalid UUID'),
+  socialAccountId: z
+    .string()
+    .regex(uuidPattern, 'A verified social account is required before submitting a clip.'),
   postUrl: z.string().trim().url().max(500),
 });
 
