@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Flame,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
 import { BottomNav } from '../../../components/BottomNav';
@@ -25,6 +26,15 @@ import { CreateCampaignModal } from '../../../components/CreateCampaignModal';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
 import { Campaign, SocialAccount, Submission } from '../../../types';
+
+function withTimeout<T>(promise: PromiseLike<T>, ms = 12000): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('LOAD_TIMEOUT')), ms)
+    ),
+  ]);
+}
 
 function extractYoutubeId(url?: string, defaultId?: string): string {
   if (defaultId && defaultId.length === 11) return defaultId;
@@ -42,6 +52,8 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [notFound, setNotFound] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [campaignSubmissions, setCampaignSubmissions] = useState<Submission[]>([]);
 
@@ -56,7 +68,18 @@ export default function CampaignDetailPage() {
     let isMounted = true;
 
     async function loadRealCampaignData() {
-      if (!campaignId) return;
+      if (!campaignId) {
+        if (isMounted) {
+          setNotFound(true);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      setIsLoading(true);
+      setLoadError(null);
+      setNotFound(false);
+      setCampaign(null);
 
       try {
         let foundCampaign: Campaign | null = null;
@@ -65,18 +88,16 @@ export default function CampaignDetailPage() {
         );
 
         if (isUuid) {
-          const { data: byId } = await supabase
-            .from('campaigns')
-            .select('*')
-            .eq('id', campaignId)
-            .maybeSingle();
+          const { data: byId, error } = await withTimeout(
+            supabase.from('campaigns').select('*').eq('id', campaignId).maybeSingle()
+          );
+          if (error) throw error;
           foundCampaign = (byId as Campaign) || null;
         } else {
-          const { data: bySlug } = await supabase
-            .from('campaigns')
-            .select('*')
-            .eq('slug', campaignId)
-            .maybeSingle();
+          const { data: bySlug, error } = await withTimeout(
+            supabase.from('campaigns').select('*').eq('slug', campaignId).maybeSingle()
+          );
+          if (error) throw error;
           foundCampaign = (bySlug as Campaign) || null;
         }
 
@@ -87,21 +108,30 @@ export default function CampaignDetailPage() {
 
         if (isMounted) {
           setCampaign(foundCampaign);
-          setNotFound(false);
+        }
 
-          const { data: dbSubs } = await supabase
+        const { data: dbSubs, error: subsError } = await withTimeout(
+          supabase
             .from('submissions')
             .select('*')
             .eq('campaign_id', foundCampaign.id)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+        );
 
-          if (dbSubs && isMounted) {
-            setCampaignSubmissions(dbSubs as Submission[]);
+        if (subsError) {
+          console.warn('Could not load campaign submissions:', subsError.message);
+        } else if (dbSubs && isMounted) {
+          setCampaignSubmissions(dbSubs as Submission[]);
+        }
+      } catch (err: any) {
+        console.error('Error fetching campaign detail:', err);
+        if (isMounted) {
+          if (err?.message === 'LOAD_TIMEOUT') {
+            setLoadError('Koneksi ke server terlalu lama. Silakan coba lagi.');
+          } else {
+            setLoadError('Gagal memuat detail campaign. Silakan coba lagi.');
           }
         }
-      } catch (err) {
-        console.error('Error fetching campaign detail:', err);
-        if (isMounted) setNotFound(true);
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -112,7 +142,7 @@ export default function CampaignDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [campaignId]);
+  }, [campaignId, reloadKey]);
 
   useEffect(() => {
     let isMounted = true;
@@ -150,6 +180,35 @@ export default function CampaignDetailPage() {
         <Navbar />
         <main className="flex-1 w-full flex items-center justify-center py-24">
           <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+        </main>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen surface-app flex flex-col antialiased">
+        <Navbar />
+        <main className="flex-1 w-full px-5 sm:px-[4vw] flex flex-col items-center justify-center text-center space-y-4 py-24">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--surface-2)] border border-[var(--line)] flex items-center justify-center text-rose-400">
+            <RefreshCw className="w-7 h-7" />
+          </div>
+          <h1 className="text-xl font-bold text-fg">Gagal Memuat Campaign</h1>
+          <p className="text-xs text-fg-muted leading-relaxed max-w-sm">{loadError}</p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              onClick={() => setReloadKey((key) => key + 1)}
+              className="py-2.5 px-6 rounded-full font-semibold text-xs bg-white text-black hover:bg-white/90 transition-all"
+            >
+              Coba Lagi
+            </button>
+            <Link
+              href="/"
+              className="py-2.5 px-6 rounded-full font-semibold text-xs bg-[var(--surface-2)] text-fg border border-[var(--line)] hover:bg-[var(--surface-3)] transition-all"
+            >
+              Kembali ke Beranda
+            </Link>
+          </div>
         </main>
       </div>
     );

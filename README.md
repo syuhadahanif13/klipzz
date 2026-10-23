@@ -118,6 +118,23 @@ Catatan deployment:
 
 ---
 
+### Troubleshooting: detail campaign blank / chunk 404
+Jika halaman `/campaign/...` kosong dan console browser menunjukkan `404` untuk file seperti
+`/_next/static/chunks/app/campaign/[id]/page-xxxx.js`, berarti server menyajikan HTML dari build lama
+tetapi folder `.next/static` sudah diganti build baru (atau upload build tidak lengkap).
+Lakukan rebuild bersih, jangan build saat aplikasi masih berjalan:
+
+```bash
+cd frontend
+rm -rf .next
+npm ci
+npm run build
+# baru setelah build selesai: restart aplikasi (Plesk Node.js / PM2 / Docker)
+```
+
+Jika memakai Docker, jalankan `docker compose build --no-cache frontend && docker compose up -d frontend`.
+Jangan menyalin sebagian isi `.next`; deploy seluruh hasil build secara atomik.
+
 ## 🔐 7. Keamanan & Rotasi Secret
 - Semua penulisan campaign, submission, dan verifikasi akun sosial dilakukan oleh backend dengan
   token Supabase pengguna; backend memakai service role dan tidak mempercayai `user_id` dari body/query.

@@ -24,7 +24,7 @@ interface NavbarProps {
 
 export function Navbar({ onOpenBioChallenge, onOpenCreateCampaign }: NavbarProps) {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -83,7 +83,14 @@ export function Navbar({ onOpenBioChallenge, onOpenCreateCampaign }: NavbarProps
 
           {/* Right side */}
           <div className="ml-auto flex items-center gap-2">
-            {user ? (
+            {loading ? (
+              // Avoid flashing "Masuk / Daftar Gratis" while the session is
+              // still being restored. That flash looks like a sudden logout.
+              <div
+                className="h-9 w-24 rounded-full bg-[var(--surface-2)] animate-pulse"
+                aria-label="Memuat sesi"
+              />
+            ) : user ? (
               <>
                 {/* Bio verify (clipper) */}
                 {!isAdmin && onOpenBioChallenge && (
