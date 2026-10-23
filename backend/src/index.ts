@@ -3,10 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import apiRoutes from './routes/api.js';
 
-// Hanya load .env saat development — di production, env var di-inject langsung oleh platform (Coolify/Railway)
-if (process.env.NODE_ENV !== 'production') {
-  dotenv.config();
-}
+// Load .env when present. On platforms that inject env vars (Plesk/Coolify/
+// Railway), dotenv does not override existing process env values.
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
