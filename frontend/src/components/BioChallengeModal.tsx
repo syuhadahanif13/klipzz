@@ -11,9 +11,16 @@ interface BioChallengeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAccountVerified: (account: SocialAccount) => void;
+  /** Override when this modal is opened from another modal. */
+  zIndexClass?: string;
 }
 
-export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioChallengeModalProps) {
+export function BioChallengeModal({
+  isOpen,
+  onClose,
+  onAccountVerified,
+  zIndexClass = 'z-50',
+}: BioChallengeModalProps) {
   const { user } = useAuth();
   const [platform, setPlatform] = useState<SocialPlatform>('tiktok');
   const [handle, setHandle] = useState('');
@@ -120,7 +127,7 @@ export function BioChallengeModal({ isOpen, onClose, onAccountVerified }: BioCha
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+    <div className={`fixed inset-0 ${zIndexClass} flex items-center justify-center p-4 bg-black/75 backdrop-blur-md`}>
       <div className="relative w-full max-w-lg rounded-2xl p-6 sm:p-8 bg-[var(--surface)] border border-[var(--line)] shadow-2xl">
         {/* Close Button */}
         <button

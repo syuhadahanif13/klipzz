@@ -2,14 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Trophy } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
 import { BottomNav } from '../../components/BottomNav';
 import { BioChallengeModal } from '../../components/BioChallengeModal';
 import { CreateCampaignModal } from '../../components/CreateCampaignModal';
+import { CampaignDetailModal } from '../../components/CampaignDetailModal';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
+import { Campaign } from '../../types';
 
 interface LeaderboardUser {
   rank: number;
@@ -22,12 +23,12 @@ interface LeaderboardUser {
 }
 
 export default function LeaderboardPage() {
-  const router = useRouter();
   const { user } = useAuth();
   const [topClippers, setTopClippers] = useState<LeaderboardUser[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
 
   useEffect(() => {
     async function loadLeaderboard() {
@@ -278,8 +279,14 @@ export default function LeaderboardPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCampaignCreated={(camp) => {
-          router.push(`/campaign/${camp.slug || camp.id}`);
+          setDetailCampaign(camp);
         }}
+      />
+
+      <CampaignDetailModal
+        isOpen={Boolean(detailCampaign)}
+        campaign={detailCampaign}
+        onClose={() => setDetailCampaign(null)}
       />
 
       {/* MOBILE BOTTOM APP NAVIGATION */}

@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   Wallet,
   TrendingUp,
@@ -22,17 +20,18 @@ import { BottomNav } from '../../components/BottomNav';
 import { BioChallengeModal } from '../../components/BioChallengeModal';
 import { CreateCampaignModal } from '../../components/CreateCampaignModal';
 import { SubmitClipModal } from '../../components/SubmitClipModal';
+import { CampaignDetailModal } from '../../components/CampaignDetailModal';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { Campaign, SocialAccount, Submission } from '../../types';
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { user } = useAuth();
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
 
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -482,12 +481,13 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 pt-1">
-                        <Link
-                          href={`/campaign/${camp.slug || camp.id}`}
+                        <button
+                          type="button"
+                          onClick={() => setDetailCampaign(camp)}
                           className="py-2 px-2.5 rounded-lg text-center text-[11px] font-semibold bg-[var(--surface-3)] hover:bg-white/10 text-fg transition-colors flex items-center justify-center truncate"
                         >
                           Creator Kit
-                        </Link>
+                        </button>
 
                         {!isBrandOrAdmin ? (
                           <button
@@ -498,12 +498,13 @@ export default function DashboardPage() {
                             <span>Setor</span>
                           </button>
                         ) : (
-                          <Link
-                            href={`/campaign/${camp.slug || camp.id}`}
+                          <button
+                            type="button"
+                            onClick={() => setDetailCampaign(camp)}
                             className="py-2 px-2.5 rounded-lg text-center text-[11px] font-bold bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors flex items-center justify-center"
                           >
                             Kelola
-                          </Link>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -642,8 +643,18 @@ export default function DashboardPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCampaignCreated={(camp) => {
-          router.push(`/campaign/${camp.slug || camp.id}`);
+          setCampaigns((prev) => [camp, ...prev]);
+          setDetailCampaign(camp);
         }}
+      />
+
+      <CampaignDetailModal
+        isOpen={Boolean(detailCampaign)}
+        campaign={detailCampaign}
+        onClose={() => setDetailCampaign(null)}
+        socialAccounts={socialAccounts}
+        onAccountVerified={handleAccountVerified}
+        onSubmissionCreated={handleSubmitSuccess}
       />
 
       <SubmitClipModal

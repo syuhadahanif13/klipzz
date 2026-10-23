@@ -14,6 +14,8 @@ interface SubmitClipModalProps {
   socialAccounts: SocialAccount[];
   onSubmitSuccess: (newSub: Submission) => void;
   onOpenBioChallenge: () => void;
+  /** Override when this modal is opened from another modal. */
+  zIndexClass?: string;
 }
 
 export function SubmitClipModal({
@@ -23,6 +25,7 @@ export function SubmitClipModal({
   socialAccounts,
   onSubmitSuccess,
   onOpenBioChallenge,
+  zIndexClass = 'z-50',
 }: SubmitClipModalProps) {
   const { user } = useAuth();
   const [postUrl, setPostUrl] = useState('');
@@ -120,7 +123,7 @@ export function SubmitClipModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+    <div className={`fixed inset-0 ${zIndexClass} flex items-center justify-center p-4 bg-black/75 backdrop-blur-md`}>
       <div className="relative w-full max-w-lg rounded-2xl p-6 sm:p-8 bg-[var(--surface)] border border-[var(--line)] shadow-2xl">
         <button
           onClick={onClose}

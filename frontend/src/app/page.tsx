@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import {
   Scissors,
   Search,
@@ -15,6 +14,7 @@ import { BottomNav } from '../components/BottomNav';
 import { BioChallengeModal } from '../components/BioChallengeModal';
 import { SubmitClipModal } from '../components/SubmitClipModal';
 import { CreateCampaignModal } from '../components/CreateCampaignModal';
+import { CampaignDetailModal } from '../components/CampaignDetailModal';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { Campaign, SocialAccount } from '../types';
@@ -43,6 +43,7 @@ export default function HomePage() {
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
 
   // Fetch data from Supabase
   useEffect(() => {
@@ -94,6 +95,10 @@ export default function HomePage() {
   const openSubmitFor = (camp: Campaign) => {
     setSelectedCampaign(camp);
     setIsSubmitModalOpen(true);
+  };
+
+  const openCreatorKit = (camp: Campaign) => {
+    setDetailCampaign(camp);
   };
 
   // Filter & Sort
@@ -218,12 +223,13 @@ export default function HomePage() {
 
                   {/* CTA Buttons */}
                   <div className="flex w-full items-center gap-2 sm:w-auto">
-                    <Link
-                      href={`/campaign/${featuredCampaign.slug || featuredCampaign.id}`}
+                    <button
+                      type="button"
+                      onClick={() => openCreatorKit(featuredCampaign)}
                       className="flex h-11 flex-1 items-center justify-center rounded-[40px] bg-white px-5 text-[0.875rem] font-semibold whitespace-nowrap text-black transition-colors hover:bg-white/90 sm:flex-none sm:px-7"
                     >
                       Buka Creator Kit
-                    </Link>
+                    </button>
                     <button
                       onClick={() => openSubmitFor(featuredCampaign)}
                       className="flex h-11 flex-1 items-center justify-center rounded-[40px] border border-white/30 px-5 text-[0.875rem] font-medium whitespace-nowrap text-white backdrop-blur-sm transition-colors hover:bg-white/10 sm:flex-none sm:px-6"
@@ -453,12 +459,13 @@ export default function HomePage() {
                       <div className="-my-1 grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 group-hover:grid-rows-[1fr] group-focus-within:grid-rows-[1fr]">
                         <div className="overflow-hidden opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
                           <div className="flex items-center gap-2 pt-2 pb-1">
-                            <Link
-                              href={`/campaign/${camp.slug || camp.id}`}
+                            <button
+                              type="button"
+                              onClick={() => openCreatorKit(camp)}
                               className="relative z-10 flex h-9 items-center rounded-full bg-[var(--accent)] px-4 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
                             >
                               Buka Creator Kit
-                            </Link>
+                            </button>
                             <button
                               onClick={() => openSubmitFor(camp)}
                               className="relative z-10 flex h-9 items-center rounded-full border border-[var(--line)] bg-[var(--surface-2)] px-3 text-[0.8125rem] font-medium text-fg-muted hover:text-fg transition-colors"
@@ -479,12 +486,13 @@ export default function HomePage() {
                     </div>
 
                     {/* Full-card click target */}
-                    <Link
-                      href={`/campaign/${camp.slug || camp.id}`}
+                    <button
+                      type="button"
+                      onClick={() => openCreatorKit(camp)}
                       className="absolute inset-0 rounded-2xl outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                     >
                       <span className="sr-only">Lihat detail {camp.title}</span>
-                    </Link>
+                    </button>
                   </div>
                 );
               })}
@@ -637,7 +645,17 @@ export default function HomePage() {
       <CreateCampaignModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCampaignCreated={(camp) => setCampaigns((prev) => [camp, ...prev])}
+        onCampaignCreated={(camp) => {
+          setCampaigns((prev) => [camp, ...prev]);
+          setDetailCampaign(camp);
+        }}
+      />
+      <CampaignDetailModal
+        isOpen={Boolean(detailCampaign)}
+        campaign={detailCampaign}
+        onClose={() => setDetailCampaign(null)}
+        socialAccounts={socialAccounts}
+        onAccountVerified={(acc) => setSocialAccounts((prev) => [acc, ...prev])}
       />
       <BottomNav
         onOpenSubmit={() => { if (campaigns.length > 0) openSubmitFor(campaigns[0]); }}
