@@ -107,22 +107,29 @@ export async function scrapeProfileBio(
 
   try {
     if (platform === 'tiktok') {
+      // apidojo/tiktok-scraper expects startUrls/usernames, not a `profiles`
+      // field. Profile URLs return post items whose `channel` object contains
+      // the profile bio, follower count, and avatar.
       const items = await callActor('apidojo/tiktok-scraper', {
-        profiles: [cleanHandle],
-        resultsPerPage: 1,
-        shouldDownloadVideos: false,
+        startUrls: [{ url: `https://www.tiktok.com/@${cleanHandle}` }],
+        maxItems: 10,
       });
       const profile = items[0];
-      if (!profile) throw new Error(`TikTok profile @${cleanHandle} not found`);
+      if (!profile || profile.noResults) {
+        throw new Error(
+          `TikTok profile @${cleanHandle} not found, private, or returned no public posts`
+        );
+      }
 
-      const bio = profile.authorMeta?.signature || profile.signature || profile.bio || '';
+      const channel = profile.channel || profile.authorMeta || {};
+      const bio = channel.bio || channel.signature || profile.signature || profile.bio || '';
       const verified = bio.toUpperCase().includes(expectedCode.toUpperCase());
 
       return {
         verified,
         actualBio: bio,
-        followerCount: profile.authorMeta?.fans || 0,
-        avatarUrl: profile.authorMeta?.avatar,
+        followerCount: channel.followers ?? channel.fans ?? 0,
+        avatarUrl: channel.avatar || channel.avatarUrl,
         source: 'apify',
       };
     }
@@ -176,21 +183,22 @@ export async function scrapePostMetrics(
 
   try {
     if (platform === 'tiktok') {
+      // Single post URLs work through startUrls. The old `postURLs` field is
+      // not part of this actor's input schema and was silently ignored.
       const items = await callActor('apidojo/tiktok-scraper', {
-        postURLs: [postUrl],
-        resultsPerPage: 1,
-        shouldDownloadVideos: false,
+        startUrls: [{ url: postUrl }],
+        maxItems: 10,
       });
       const post = items[0];
-      if (!post) throw new Error('TikTok post data not found');
+      if (!post || post.noResults) throw new Error('TikTok post data not found');
 
       return {
-        views: post.playCount || post.views || 0,
-        likes: post.diggCount || post.likes || 0,
-        comments: post.commentCount || 0,
-        shares: post.shareCount || 0,
-        caption: post.text || post.desc || '',
-        thumbnailUrl: post.videoMeta?.coverUrl,
+        views: post.views ?? post.stats?.playCount ?? 0,
+        likes: post.likes ?? post.stats?.diggCount ?? 0,
+        comments: post.comments ?? post.stats?.commentCount ?? 0,
+        shares: post.shares ?? post.stats?.shareCount ?? 0,
+        caption: post.title || post.desc || '',
+        thumbnailUrl: post.video?.cover || post.video?.thumbnail,
         postId: post.id,
         source: 'apify',
       };
