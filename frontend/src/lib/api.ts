@@ -17,8 +17,9 @@ export class ApiError extends Error {
 }
 
 /**
- * Calls the Express API with the current Supabase access token.
- * Sensitive writes must never go directly to Supabase from the browser.
+ * Calls the same-origin Next.js API Route Handlers with the current Supabase
+ * access token. Sensitive writes must never go directly to Supabase from the
+ * browser.
  */
 export async function apiFetch<T = any>(
   path: string,

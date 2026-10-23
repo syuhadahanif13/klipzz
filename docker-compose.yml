@@ -1,13 +1,12 @@
 version: '3.8'
 
 services:
-  # Next.js Frontend
+  # Single Next.js app: UI and /api Route Handlers in one container.
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Same-origin /api is proxied server-side to the backend container.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
         NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
@@ -18,44 +17,12 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api}
-      - API_PROXY_TARGET=${API_PROXY_TARGET:-http://backend:4000}
       - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-    depends_on:
-      - backend
-
-  # API Backend Server
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: klipzz_backend
-    restart: unless-stopped
-    ports:
-      - "4000:4000"
-    environment:
-      - NODE_ENV=production
-      - PORT=4000
+      # Server-only secrets used by the Route Handlers.
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - APIFY_API_TOKEN=${APIFY_API_TOKEN}
       - ALLOW_SIMULATION=${ALLOW_SIMULATION:-false}
       - APIFY_TIMEOUT_MS=${APIFY_TIMEOUT_MS:-120000}
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
-
-  # Background Worker (Metrics Scraper & Cron Sync)
-  worker:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile
-    container_name: klipzz_worker
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - APIFY_API_TOKEN=${APIFY_API_TOKEN}
-      - ALLOW_SIMULATION=${ALLOW_SIMULATION:-false}
-      - APIFY_TIMEOUT_MS=${APIFY_TIMEOUT_MS:-120000}
-    depends_on:
-      - backend
+      - CRON_SECRET=${CRON_SECRET}

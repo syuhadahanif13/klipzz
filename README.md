@@ -34,32 +34,29 @@ Platform **tidak menggunakan OAuth resmi** media sosial (menghindari rate limits
 
 ---
 
-## 4. Struktur Arsitektur Monorepo
+## 4. Struktur Arsitektur (Single Next.js App)
 ```
 klipzz_vid/
-├── backend/                  # Express.js REST API & Apify Webhook Handler
-│   ├── src/
-│   │   ├── controllers/      # Social, Campaign, Submission, Leaderboard
-│   │   ├── services/         # Apify Scraper & Supabase Admin
-│   │   └── routes/
-│   └── Dockerfile
-├── worker/                   # Background Cron Job Engine
-│   ├── src/
-│   │   ├── tasks/            # Sync metrics berkala & cleanup challenge expired
-│   │   └── index.ts
-│   └── Dockerfile
-├── frontend/                 # Next.js 14 App Router (Tailwind MOON Palette)
+├── frontend/                 # Next.js 14: UI + API Route Handlers (satu proses)
 │   ├── src/
 │   │   ├── app/              # Home, Dashboard, Leaderboard, Campaign Detail
+│   │   ├── app/api/          # health, social, campaigns, submissions, leaderboard, cron
+│   │   ├── server/           # Supabase admin, Apify, rate limit, sync, cleanup
 │   │   ├── components/       # Navbar, BioChallengeModal, SubmitClipModal, etc.
 │   │   └── types/
 │   └── Dockerfile
 ├── supabase/
 │   ├── migrations/           # SQL Schema, Triggers, RLS Policies, Functions
 │   └── seed.sql              # Official campaigns seed data (@DipanggilKeRuangan)
-├── docker-compose.yml        # Orchestration untuk Self-Hosted VPS / Coolify
+├── backend/                  # LEGACY: tidak dipakai/di-deploy lagi (referensi)
+├── worker/                   # LEGACY: diganti Plesk Scheduled Tasks
+├── docker-compose.yml        # Satu container Next.js
 └── README.md
 ```
+
+Semua endpoint API sekarang berada di `frontend/src/app/api/`. Frontend memanggil
+`/api/...` secara same-origin; tidak ada Express server, PM2, subdomain API, atau
+reverse proxy terpisah. Supabase tetap menjadi database & auth provider.
 
 ---
 
@@ -75,47 +72,76 @@ klipzz_vid/
    `SUPABASE_SERVICE_ROLE_KEY` **wajib** berisi service role secret asli (bukan anon/publishable key).
 4. Migrasi hardening mengaktifkan RLS, mencabut write langsung dari client, dan menyembunyikan
    `profiles.balance`/`profiles.email`. Frontend hanya membaca lewat kolom yang diizinkan dan
-   RPC `get_my_profile()`; semua penulisan sensitif harus lewat backend API.
+   RPC `get_my_profile()`; semua penulisan sensitif harus lewat Next.js Route Handlers.
 5. Jangan jalankan ulang migrasi `init_schema` di database produksi yang sudah berisi data.
 
-### B. Menjalankan Backend & Worker
-```bash
-# Terminal 1: Backend API
-cd backend
-npm install
-npm run dev
-
-# Terminal 2: Worker Cron Sync
-cd worker
-npm install
-npm run dev
-```
-
-### C. Menjalankan Frontend
+### B. Menjalankan Frontend + API (satu proses)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Buka browser di `http://localhost:3000`.
+Buka browser di `http://localhost:3001`.
+
+Buat `frontend/.env.local` berisi:
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_API_URL=/api
+
+# Server-only (jangan pakai prefix NEXT_PUBLIC_)
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+APIFY_API_TOKEN=...
+ALLOW_SIMULATION=false
+APIFY_TIMEOUT_MS=120000
+CRON_SECRET=secret-lokal-panjang
+```
+
+Endpoint API berjalan di proses Next.js yang sama:
+- `GET  /api/health`
+- `POST /api/social/challenge`
+- `POST /api/social/verify`
+- `GET  /api/social/accounts`
+- `GET/POST /api/campaigns`
+- `GET  /api/campaigns/:id`
+- `POST /api/submissions`
+- `GET  /api/submissions/clipper/:clipperId`
+- `GET  /api/leaderboard`
+- `GET/POST /api/cron/sync-metrics` (butuh `Authorization: Bearer $CRON_SECRET`)
+- `GET/POST /api/cron/cleanup` (butuh `Authorization: Bearer $CRON_SECRET`)
+
+Contoh menjalankan sync manual saat development:
+```bash
+curl -H "Authorization: Bearer secret-lokal-panjang" \
+  http://localhost:3001/api/cron/sync-metrics
+```
 
 ---
 
 ## 🐳 6. Self-Hosted Deployment (Docker Compose / Coolify)
 ```bash
 cp .env.example .env
-# Isi kredensial Supabase & Apify di .env
+# Isi kredensial Supabase, Apify, dan CRON_SECRET di .env
 docker compose up -d --build
 ```
-Semua kontainer (`klipzz_frontend`, `klipzz_backend`, `klipzz_worker`) akan aktif secara mandiri di server Anda.
+Hanya ada satu container: `klipzz_frontend` (UI + `/api` Route Handlers).
 
 Catatan deployment:
-- Default production memakai **same-origin** `/api`: browser memanggil `https://domain-kamu/api`, lalu Next.js mem-proxy ke `API_PROXY_TARGET` (default `http://127.0.0.1:4000`). Backend tidak perlu diekspos ke internet.
-- Jika backend berjalan di host/port lain, set `API_PROXY_TARGET` (contoh: `http://127.0.0.1:4100`). Di Docker Compose nilainya otomatis `http://backend:4000`.
-- Alternatif: set `NEXT_PUBLIC_API_URL` ke URL API publik yang bisa diakses browser (contoh `https://api.domain.com/api`). Jangan pernah memakai `localhost` untuk build produksi.
+- Production memakai **same-origin** `/api`: browser memanggil `https://domain-kamu/api`, dan request itu ditangani langsung oleh Next.js. Tidak ada proxy ke Express.
 - `NEXT_PUBLIC_*` dibaca saat build, jadi isi lewat build args / environment sebelum build/deploy.
-- Isi `CORS_ORIGIN` dengan origin frontend (dipisah koma jika lebih dari satu).
-- Biarkan `ALLOW_SIMULATION=false` di produksi; worker akan gagal/skip alih-alih membuat metrik palsu.
+- `SUPABASE_SERVICE_ROLE_KEY`, `APIFY_API_TOKEN`, dan `CRON_SECRET` hanya untuk server. Jangan pernah memakai prefix `NEXT_PUBLIC_`.
+- Biarkan `ALLOW_SIMULATION=false` di produksi; cron akan gagal/skip alih-alih membuat metrik palsu.
+- Apify bisa memakan waktu sampai ~120 detik. Pastikan reverse proxy/Plesk mengizinkan timeout lebih besar:
+  ```nginx
+  proxy_read_timeout 180s;
+  proxy_send_timeout 180s;
+  ```
+- **Plesk Scheduled Tasks** menggantikan worker selalu-hidup:
+  - Tiap 15 menit: `GET https://klipzz.rajaemas.dev/api/cron/sync-metrics`
+  - Tiap jam: `GET https://klipzz.rajaemas.dev/api/cron/cleanup`
+  - Kirim header `Authorization: Bearer <CRON_SECRET>`.
+- Setelah deploy, subdomain `apiklip.rajaemas.dev`, proses PM2 backend/worker, dan konfigurasi reverse proxy API lama boleh dihentikan.
 
 ---
 
@@ -137,11 +163,13 @@ Jika memakai Docker, jalankan `docker compose build --no-cache frontend && docke
 Jangan menyalin sebagian isi `.next`; deploy seluruh hasil build secara atomik.
 
 ## 🔐 7. Keamanan & Rotasi Secret
-- Semua penulisan campaign, submission, dan verifikasi akun sosial dilakukan oleh backend dengan
-  token Supabase pengguna; backend memakai service role dan tidak mempercayai `user_id` dari body/query.
-- Jangan pernah menaruh `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, atau `APIFY_API_TOKEN` di
-  `frontend/.env.local` atau variabel `NEXT_PUBLIC_*`.
+- Semua penulisan campaign, submission, dan verifikasi akun sosial dilakukan oleh Next.js Route
+  Handlers dengan token Supabase pengguna; handler memakai service role dan tidak mempercayai
+  `user_id` dari body/query.
+- Secret server (`SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `APIFY_API_TOKEN`, `CRON_SECRET`)
+  hanya boleh ada di environment server / `frontend/.env.local` (lokal). Jangan pernah memakai
+  prefix `NEXT_PUBLIC_` untuk nilai tersebut.
 - Jika secret pernah ter-commit atau terkirim di chat: rotasi service role key, database password,
-  dan Apify token di dashboard masing-masing, lalu perbarui `.env` server.
+  Apify token, dan `CRON_SECRET` di dashboard masing-masing, lalu perbarui environment server.
 - Ganti password akun seed (`admin`, `clipper_hans`) sebelum dipakai di produksi, atau buat akun baru
   lewat halaman signup. Role `admin` tidak dapat dibuat dari signup publik.
